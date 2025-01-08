@@ -88,7 +88,7 @@
             try {
                 const response = await fetch(`/api/players/${position}`);
                 const xmlText = await response.text();
-                console.log('Raw XML:', xmlText); // Debug log
+                console.log('Raw XML:', xmlText);
                 
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(xmlText, "text/xml");
@@ -102,10 +102,11 @@
                 const players = Array.from(playerNodes).map(playerNode => {
                     const playerData = {};
                     
-                    // Get all child elements
+                    // Get all child elements and log them
                     Array.from(playerNode.children).forEach(child => {
                         const tagName = child.tagName.toLowerCase();
                         const value = child.textContent.trim();
+                        console.log(`Found tag: ${tagName} with value: ${value}`);
                         
                         // Convert numeric values
                         if (!isNaN(value) && value !== '') {
@@ -115,13 +116,15 @@
                         }
                     });
                     
-                    console.log('Parsed player data:', playerData); // Debug log
+                    console.log('Complete player data:', playerData);
                     return playerData;
                 });
 
-                return players.filter(player => 
+                const filteredPlayers = players.filter(player => 
                     player.name.toLowerCase().includes(query.toLowerCase())
                 );
+                console.log('Filtered players:', filteredPlayers);
+                return filteredPlayers;
             } catch (error) {
                 console.error('Error searching players:', error);
                 return [];
@@ -194,36 +197,41 @@
                 return;
             }
 
-            console.log('Selected players:', selectedPlayers);
-            console.log('Position config:', config);
+            console.log('Selected players for chart:', selectedPlayers);
+            console.log('Using config:', config);
 
             // Calculate max values from actual data
             const maxValues = config.stats.map((stat, index) => {
-                const values = selectedPlayers.map(player => parseFloat(player[stat]) || 0);
+                const values = selectedPlayers.map(player => {
+                    const value = parseFloat(player[stat]) || 0;
+                    console.log(`Player ${player.name} - ${stat}: ${value}`);
+                    return value;
+                });
                 const maxVal = Math.max(...values);
-                return Math.max(maxVal, config.maxValues[index]); // Use whichever is larger
+                const finalMax = Math.max(maxVal, config.maxValues[index]);
+                console.log(`Max value for ${stat}: ${finalMax}`);
+                return finalMax;
             });
 
             const datasets = selectedPlayers.map((player, index) => {
-                console.log('Processing player:', player);
+                console.log(`Creating dataset for player: ${player.name}`);
                 const data = config.stats.map((stat, i) => {
                     let value = parseFloat(player[stat]) || 0;
-                    console.log(`Raw value for ${stat}:`, value);
+                    console.log(`${stat}: ${value}`);
                     
                     // For inverted stats (like interceptions), invert the percentage
                     if (config.invertedStats && config.invertedStats.includes(stat)) {
-                        // Invert the value (lower is better)
                         const percentage = ((maxValues[i] - value) / maxValues[i]) * 100;
-                        console.log(`Inverted ${stat}: ${value} -> ${percentage.toFixed(1)}%`);
+                        console.log(`${stat} (inverted): ${value} -> ${percentage.toFixed(1)}%`);
                         return percentage;
                     } else {
-                        // Normal percentage calculation (higher is better)
                         const percentage = (value / maxValues[i]) * 100;
-                        console.log(`Normal ${stat}: ${value} -> ${percentage.toFixed(1)}%`);
+                        console.log(`${stat}: ${value} -> ${percentage.toFixed(1)}%`);
                         return percentage;
                     }
                 });
 
+                console.log(`Final data points for ${player.name}:`, data);
                 const color = getPlayerColor(index);
                 return {
                     label: player.name,

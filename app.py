@@ -50,22 +50,31 @@ def convert_to_xml(data):
         # Stats fields - handle both offensive and defensive stats
         stats_fields = [
             # Offensive stats
-            'passing_yards', 'passing_tds', 'completion_percentage', 'interceptions',
-            'rushing_yards', 'rushing_tds', 'receptions', 'receiving_yards',
-            'receiving_tds', 'targets', 'yards_per_reception', 'fumbles',
+            'passingyards', 'passingtds', 'interceptions', 'rushingyards',
+            'rushingtds', 'receptions', 'receivingyards', 'receivingtds',
+            'targets', 'yards_per_reception', 'fumbles', 'totalpoints',
             # Defensive stats
-            'tackles', 'sacks', 'tackles_for_loss', 'passes_defended',
-            'forced_fumbles', 'fumble_recoveries'
+            'tackles', 'tackles_ast', 'sacks', 'tackles_tfl',
+            'passes_defended', 'forced_fumbles', 'fumble_recoveries',
+            'qb_hits'
         ]
+        
+        # Log the available fields in the player data
+        logger.info(f"Available fields for player {player.get('name')}: {list(player.keys())}")
         
         for field in stats_fields:
             if field in player:
                 elem = ET.SubElement(player_elem, field)
-                elem.text = str(player.get(field, '0'))
+                value = player.get(field, '0')
+                elem.text = str(value)
+                logger.debug(f"Setting {field} = {value} for player {player.get('name')}")
     
     # Convert to string with proper formatting
     xml_str = ET.tostring(root, encoding='unicode')
     pretty_xml = minidom.parseString(xml_str).toprettyxml(indent="  ")
+    
+    # Log a sample of the generated XML
+    logger.info(f"Generated XML sample (first 500 chars): {pretty_xml[:500]}")
     
     # Validate XML against schema
     if not validate_xml(pretty_xml, 'static/player_stats.xsd'):
