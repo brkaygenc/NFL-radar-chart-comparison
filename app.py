@@ -64,7 +64,9 @@ def make_api_request(endpoint):
 def validate_xml(xml_string, xsd_path):
     """Validate XML against XSD schema"""
     try:
-        schema_doc = etree.parse(xsd_path)
+        # Get absolute path to schema file
+        schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), xsd_path)
+        schema_doc = etree.parse(schema_path)
         schema = etree.XMLSchema(schema_doc)
         xml_doc = etree.fromstring(xml_string.encode('utf-8'))
         schema.assertValid(xml_doc)
@@ -190,8 +192,15 @@ def get_players_by_position(position):
             return jsonify({'error': 'Failed to fetch player data'}), 503
 
         logger.info(f"Converting {len(players)} players to XML")
-        xml_data = convert_to_xml(players)
+        try:
+            xml_data = convert_to_xml(players)
+            logger.info("XML conversion successful")
+            logger.debug(f"Generated XML: {xml_data[:500]}...")  # Log first 500 chars
+        except Exception as xml_error:
+            logger.error(f"Failed to convert data to XML: {str(xml_error)}")
+            return jsonify({'error': 'Failed to convert data to XML'}), 500
         
+        logger.info("Validating XML against schema")
         if not validate_xml(xml_data, 'static/player_stats.xsd'):
             logger.error("Generated XML failed validation")
             return jsonify({'error': 'Generated XML failed validation'}), 500
