@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Updated API URL to use the new API endpoint
-API_BASE_URL = os.environ.get('NFL_API_URL', 'https://nfl-stats-api-2024-63a0f473cb46.herokuapp.com/api')
+API_BASE_URL = os.environ.get('NFL_API_URL', 'https://nfl-stats-api-2024-63a0f473cb46.herokuapp.com')
 
 # Updated valid positions to include all available positions
 VALID_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DB', 'DL']
@@ -118,8 +118,14 @@ def get_players_by_position(position):
             }), 400
 
         logger.info(f"Fetching players for position: {position}")
-        api_url = f"{API_BASE_URL}/players/{position}"
-        logger.info(f"API URL: {api_url}")
+        
+        # Try different API URL patterns
+        api_urls = [
+            f"{API_BASE_URL}/api/players/{position}",
+            f"{API_BASE_URL}/players/{position}",
+            f"{API_BASE_URL}/api/v1/players/{position}",
+            f"{API_BASE_URL}/v1/players/{position}"
+        ]
         
         # Add headers to request JSON response
         headers = {
@@ -127,33 +133,39 @@ def get_players_by_position(position):
             'User-Agent': 'NFL-Stats-Visualizer/1.0'
         }
         
-        # Add timeout to prevent hanging
-        response = requests.get(api_url, headers=headers, timeout=10)
-        logger.info(f"API Response Status: {response.status_code}")
-        logger.info(f"API Response Headers: {response.headers}")
-        logger.info(f"API Response Content: {response.text[:500]}")  # Log first 500 chars
+        response = None
+        working_url = None
         
-        # Handle different status codes
-        if response.status_code == 404:
-            logger.warning(f"No data found for position: {position}")
-            return jsonify({'error': 'No data found for this position'}), 404
-        elif response.status_code == 403:
-            logger.error(f"API access forbidden for position: {position}")
-            return jsonify({'error': 'API access forbidden. Please check authentication.'}), 403
-        elif response.status_code != 200:
-            logger.error(f"API Error {response.status_code} for position {position}: {response.text}")
+        # Try each URL pattern until we get a successful response
+        for url in api_urls:
+            logger.info(f"Trying API URL: {url}")
+            try:
+                response = requests.get(url, headers=headers, timeout=10)
+                logger.info(f"Response from {url}: Status={response.status_code}, Content-Type={response.headers.get('Content-Type')}")
+                
+                if response.status_code == 200 and 'application/json' in response.headers.get('Content-Type', ''):
+                    working_url = url
+                    break
+            except Exception as e:
+                logger.warning(f"Failed to fetch from {url}: {str(e)}")
+                continue
+        
+        if not working_url:
+            logger.error("No working API URL found")
             return jsonify({
-                'error': f'API Error: {response.status_code}',
-                'message': response.text
-            }), 500
+                'error': 'API endpoint not found',
+                'message': 'Could not find a working API endpoint'
+            }), 404
             
+        logger.info(f"Using working API URL: {working_url}")
+        
         try:
             players = response.json()
             logger.info(f"Successfully parsed JSON response. Type: {type(players)}")
             logger.info(f"First player data: {players[0] if players else 'No players'}")
             
             if not isinstance(players, list):
-                logger.error(f"Invalid API response format for position {position}. Got: {type(players)}")
+                logger.error(f"Invalid API response format. Got: {type(players)}")
                 return jsonify({'error': 'Invalid API response format. Expected an array of players.'}), 500
                 
             logger.info(f"Number of players found: {len(players)}")
@@ -167,7 +179,7 @@ def get_players_by_position(position):
             return xml_data, 200, {'Content-Type': 'application/xml; charset=utf-8'}
             
         except json.JSONDecodeError as e:
-            logger.error(f"JSON Decode Error for position {position}: {str(e)}")
+            logger.error(f"JSON Decode Error: {str(e)}")
             logger.error(f"Raw response content: {response.text}")
             return jsonify({
                 'error': 'Invalid JSON response from API',
