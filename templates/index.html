@@ -74,9 +74,9 @@
                 maxValues: [40, 45, 60, 65, 200]
             },
             'LB': {
-                stats: ['tackles', 'sacks', 'tackles_for_loss', 'interceptions', 'total_points'],
-                labels: ['Tackles', 'Sacks', 'TFL', 'Interceptions', 'Total Points'],
-                maxValues: [150, 15, 25, 8, 200]
+                stats: ['tackles', 'sacks', 'tackles_for_loss', 'forced_fumbles', 'total_points'],
+                labels: ['Tackles', 'Sacks', 'TFL', 'Forced Fumbles', 'Total Points'],
+                maxValues: [150, 15, 25, 5, 200]
             },
             'DB': {
                 stats: ['tackles', 'interceptions', 'passes_defended', 'forced_fumbles', 'total_points'],
@@ -177,10 +177,10 @@
             };
         }
 
-        function createPlayerTag(player) {
-            const color = getPlayerColor(selectedPlayers.length);
+        function createPlayerTag(player, index) {
+            const color = getPlayerColor(index);
             return `
-                <div class="player-tag" style="border-color: ${color}">
+                <div class="player-tag" style="background-color: ${color}20; border-color: ${color}">
                     ${player.name}
                     <span class="position">${player.position} - ${player.team}</span>
                     <button onclick="removePlayer('${player.name}')" class="remove-btn">×</button>
@@ -189,7 +189,7 @@
         }
 
         function getPlayerColor(index) {
-            // More colors for more players
+            // Fixed colors for consistent mapping
             const colors = [
                 '#ff4444', // Red
                 '#00c3ff', // Blue
@@ -214,15 +214,18 @@
         }
 
         function removePlayer(playerName) {
-            selectedPlayers = selectedPlayers.filter(p => p.name !== playerName);
-            updatePlayerTags();
-            updateChart();
+            const index = selectedPlayers.findIndex(p => p.name === playerName);
+            if (index !== -1) {
+                selectedPlayers.splice(index, 1);
+                updatePlayerTags();
+                updateChart();
+            }
         }
 
         function updatePlayerTags() {
             const tagsContainer = document.querySelector('.player-tags');
             tagsContainer.innerHTML = selectedPlayers.map((player, index) => 
-                createPlayerTag(player)
+                createPlayerTag(player, index)
             ).join('');
         }
 
@@ -243,55 +246,25 @@
                 return;
             }
 
-            console.log('Selected players for chart:', selectedPlayers);
-            console.log('Using config:', config);
-
-            // Calculate max values from actual data
-            const maxValues = config.stats.map((stat, index) => {
-                const values = selectedPlayers.map(player => {
+            const datasets = selectedPlayers.map((player, index) => ({
+                label: player.name,
+                data: config.stats.map(stat => {
                     const value = parseFloat(player[stat]) || 0;
-                    console.log(`Player ${player.name} - ${stat}: ${value}`);
-                    return value;
-                });
-                const maxVal = Math.max(...values);
-                const finalMax = Math.max(maxVal, config.maxValues[index]);
-                console.log(`Max value for ${stat}: ${finalMax}`);
-                return finalMax;
-            });
-
-            const datasets = selectedPlayers.map((player, index) => {
-                console.log(`Creating dataset for player: ${player.name}`);
-                const data = config.stats.map((stat, i) => {
-                    let value = parseFloat(player[stat]) || 0;
-                    console.log(`${stat}: ${value}`);
-                    
-                    // For inverted stats (like interceptions), invert the percentage
+                    const maxValue = config.maxValues[config.stats.indexOf(stat)];
+                    // If the stat should be inverted (like interceptions), invert the percentage
                     if (config.invertedStats && config.invertedStats.includes(stat)) {
-                        const percentage = ((maxValues[i] - value) / maxValues[i]) * 100;
-                        console.log(`${stat} (inverted): ${value} -> ${percentage.toFixed(1)}%`);
-                        return percentage;
-                    } else {
-                        const percentage = (value / maxValues[i]) * 100;
-                        console.log(`${stat}: ${value} -> ${percentage.toFixed(1)}%`);
-                        return percentage;
+                        return ((maxValue - value) / maxValue) * 100;
                     }
-                });
-
-                console.log(`Final data points for ${player.name}:`, data);
-                const color = getPlayerColor(index);
-                return {
-                    label: player.name,
-                    data: data,
-                    borderColor: color,
-                    backgroundColor: `${color}33`,
-                    borderWidth: 2,
-                    pointBackgroundColor: color,
-                    pointBorderColor: '#fff',
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: color,
-                    fill: true
-                };
-            });
+                    return (value / maxValue) * 100;
+                }),
+                borderColor: getPlayerColor(index),
+                backgroundColor: getPlayerColor(index) + '20',
+                borderWidth: 2,
+                pointBackgroundColor: getPlayerColor(index),
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: getPlayerColor(index)
+            }));
 
             if (window.myChart) {
                 window.myChart.destroy();
