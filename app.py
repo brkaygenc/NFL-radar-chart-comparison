@@ -146,7 +146,16 @@ def convert_to_xml(data):
             elif xml_field == 'forced_fumbles':
                 value = player.get('forced_fumbles')
             elif xml_field == 'fumble_recoveries':
-                value = player.get('fumble_recoveries', 0)  # This field might not be in API
+                value = player.get('fumble_recoveries', 0)
+            # Kicker stats mapping
+            elif xml_field == 'fieldgoals':
+                value = player.get('field_goals')
+            elif xml_field == 'fieldgoal_attempts':
+                value = player.get('field_goals_attempted')
+            elif xml_field == 'extrapoints':
+                value = player.get('extra_points')
+            elif xml_field == 'extrapoint_attempts':
+                value = player.get('extra_points_attempted')
             elif xml_field == 'total_points':
                 value = player.get('total_points')
             else:
