@@ -47,39 +47,39 @@
 
         const statsConfig = {
             'QB': {
-                stats: ['passing_yards', 'passing_tds', 'completion_percentage', 'interceptions', 'rushing_yards'],
-                labels: ['Passing Yards', 'Passing TDs', 'Completion %', 'Interceptions', 'Rushing Yards'],
-                maxValues: [5000, 50, 100, 30, 1000]
+                stats: ['passingyards', 'passingtds', 'interceptions', 'rushingyards', 'totalpoints'],
+                labels: ['Passing Yards', 'Passing TDs', 'Interceptions', 'Rushing Yards', 'Total Points'],
+                maxValues: [4000, 40, 15, 800, 400]
             },
             'RB': {
-                stats: ['rushing_yards', 'rushing_tds', 'receptions', 'receiving_yards', 'fumbles'],
-                labels: ['Rushing Yards', 'Rushing TDs', 'Receptions', 'Receiving Yards', 'Fumbles'],
-                maxValues: [2000, 25, 100, 1000, 10]
+                stats: ['rushingyards', 'rushingtds', 'receptions', 'receivingyards', 'totalpoints'],
+                labels: ['Rushing Yards', 'Rushing TDs', 'Receptions', 'Receiving Yards', 'Total Points'],
+                maxValues: [2000, 15, 80, 800, 300]
             },
             'WR': {
-                stats: ['receiving_yards', 'receiving_tds', 'receptions', 'targets', 'yards_per_reception'],
-                labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets', 'Yards per Reception'],
-                maxValues: [2000, 20, 120, 180, 20]
+                stats: ['receptions', 'targets', 'receivingyards', 'receivingtds', 'totalpoints'],
+                labels: ['Receptions', 'Targets', 'Receiving Yards', 'Receiving TDs', 'Total Points'],
+                maxValues: [120, 160, 1500, 15, 300]
             },
             'TE': {
-                stats: ['receiving_yards', 'receiving_tds', 'receptions', 'targets', 'yards_per_reception'],
-                labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets', 'Yards per Reception'],
-                maxValues: [1500, 15, 100, 150, 20]
+                stats: ['receptions', 'targets', 'receivingyards', 'receivingtds', 'totalpoints'],
+                labels: ['Receptions', 'Targets', 'Receiving Yards', 'Receiving TDs', 'Total Points'],
+                maxValues: [100, 140, 1200, 12, 250]
             },
             'LB': {
-                stats: ['tackles', 'sacks', 'interceptions', 'forced_fumbles', 'fumble_recoveries'],
-                labels: ['Tackles', 'Sacks', 'Interceptions', 'Forced Fumbles', 'Fumble Recoveries'],
-                maxValues: [150, 20, 10, 5, 5]
+                stats: ['tackles', 'tackles_ast', 'sacks', 'tackles_tfl', 'totalpoints'],
+                labels: ['Tackles', 'Assisted Tackles', 'Sacks', 'Tackles For Loss', 'Total Points'],
+                maxValues: [100, 70, 12, 20, 200]
             },
             'DB': {
-                stats: ['tackles', 'interceptions', 'passes_defended', 'forced_fumbles', 'fumble_recoveries'],
-                labels: ['Tackles', 'Interceptions', 'Passes Defended', 'Forced Fumbles', 'Fumble Recoveries'],
-                maxValues: [100, 10, 25, 5, 5]
+                stats: ['tackles', 'interceptions', 'passes_defended', 'forced_fumbles', 'totalpoints'],
+                labels: ['Tackles', 'Interceptions', 'Passes Defended', 'Forced Fumbles', 'Total Points'],
+                maxValues: [90, 8, 20, 5, 180]
             },
             'DL': {
-                stats: ['tackles', 'sacks', 'tackles_for_loss', 'forced_fumbles', 'fumble_recoveries'],
-                labels: ['Tackles', 'Sacks', 'Tackles For Loss', 'Forced Fumbles', 'Fumble Recoveries'],
-                maxValues: [80, 20, 25, 5, 5]
+                stats: ['tackles', 'sacks', 'tackles_tfl', 'qb_hits', 'totalpoints'],
+                labels: ['Tackles', 'Sacks', 'Tackles For Loss', 'QB Hits', 'Total Points'],
+                maxValues: [80, 15, 20, 30, 200]
             }
         };
 
