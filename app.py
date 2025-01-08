@@ -47,27 +47,25 @@ def convert_to_xml(data):
             elem = ET.SubElement(player_elem, field)
             elem.text = str(player.get(field, ''))
         
-        # Stats fields - handle both offensive and defensive stats
-        stats_fields = [
-            # Offensive stats
-            'passingyards', 'passingtds', 'interceptions', 'rushingyards',
-            'rushingtds', 'receptions', 'receivingyards', 'receivingtds',
-            'targets', 'yards_per_reception', 'fumbles', 'totalpoints',
-            # Defensive stats
-            'tackles', 'tackles_ast', 'sacks', 'tackles_tfl',
-            'passes_defended', 'forced_fumbles', 'fumble_recoveries',
-            'qb_hits'
-        ]
+        # Map API fields to our XML fields
+        field_mapping = {
+            'passing_yards': 'passingyards',
+            'rushing_yards': 'rushingyards',
+            'receiving_yards': 'receivingyards',
+            'touchdowns': 'totalpoints',  # Using touchdowns as total points for now
+            'interceptions': 'interceptions'
+        }
         
         # Log the available fields in the player data
         logger.info(f"Available fields for player {player.get('name')}: {list(player.keys())}")
         
-        for field in stats_fields:
-            if field in player:
-                elem = ET.SubElement(player_elem, field)
-                value = player.get(field, '0')
+        # Map and convert fields
+        for api_field, xml_field in field_mapping.items():
+            if api_field in player:
+                elem = ET.SubElement(player_elem, xml_field)
+                value = player.get(api_field, '0')
                 elem.text = str(value)
-                logger.debug(f"Setting {field} = {value} for player {player.get('name')}")
+                logger.debug(f"Mapping {api_field} -> {xml_field} = {value} for player {player.get('name')}")
     
     # Convert to string with proper formatting
     xml_str = ET.tostring(root, encoding='unicode')
