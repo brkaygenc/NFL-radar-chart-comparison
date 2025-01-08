@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFL Stats Visualizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xml2js/0.4.23/xml2js.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>NFL Player Statistics Visualization</h1>
+        
+        <div class="position-selector">
+            <button onclick="loadPosition('QB')">Quarterbacks</button>
+            <button onclick="loadPosition('RB')">Running Backs</button>
+            <button onclick="loadPosition('WR')">Wide Receivers</button>
+            <button onclick="loadPosition('TE')">Tight Ends</button>
+        </div>
+
+        <div class="charts-container">
+            <canvas id="statsChart"></canvas>
+        </div>
+
+        <div id="player-list"></div>
+    </div>
+
+    <script>
+        async function loadPosition(position) {
+            try {
+                const response = await fetch(`/api/players/${position}`);
+                const xmlText = await response.text();
+                
+                // Parse XML
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+                
+                // Convert XML to JSON for easier processing
+                const players = Array.from(xmlDoc.getElementsByTagName('player')).map(player => {
+                    const playerData = {};
+                    Array.from(player.children).forEach(child => {
+                        playerData[child.tagName] = child.textContent;
+                    });
+                    return playerData;
+                });
+
+                // Update chart with first player
+                if (players.length > 0) {
+                    updateChart(players[0], position);
+                }
+
+                // Update player list
+                updatePlayerList(players, position);
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+
+        function updateChart(playerData, position) {
+            const ctx = document.getElementById('statsChart');
+            
+            // Define stats to show based on position
+            const statsConfig = {
+                'QB': ['passing_yards', 'passing_tds', 'completion_percentage', 'interceptions'],
+                'RB': ['rushing_yards', 'rushing_tds', 'receptions', 'fumbles'],
+                'WR': ['receiving_yards', 'receiving_tds', 'receptions', 'targets'],
+                'TE': ['receiving_yards', 'receiving_tds', 'receptions', 'targets']
+            };
+
+            const stats = statsConfig[position];
+            const data = stats.map(stat => playerData[stat]);
+
+            if (window.myChart) {
+                window.myChart.destroy();
+            }
+
+            window.myChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: stats,
+                    datasets: [{
+                        label: playerData.name,
+                        data: data,
+                        fill: true,
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgb(54, 162, 235)',
+                        pointBackgroundColor: 'rgb(54, 162, 235)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(54, 162, 235)'
+                    }]
+                },
+                options: {
+                    elements: {
+                        line: {
+                            borderWidth: 3
+                        }
+                    }
+                }
+            });
+        }
+
+        function updatePlayerList(players, position) {
+            const playerList = document.getElementById('player-list');
+            playerList.innerHTML = players.map(player => 
+                `<div class="player-card" onclick="updateChart(${JSON.stringify(player)}, '${position}')">
+                    <h3>${player.name}</h3>
+                    <p>Team: ${player.team}</p>
+                </div>`
+            ).join('');
+        }
+
+        // Load QBs by default
+        loadPosition('QB');
+    </script>
+</body>
+</html> 
