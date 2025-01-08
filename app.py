@@ -88,79 +88,43 @@ def convert_to_xml(data):
     
     for player in data:
         player_elem = ET.SubElement(root, "player")
-        # Use playerid if available, otherwise use a fallback
-        player_id = str(player.get('playerid', player.get('id', '')))
+        player_id = str(player.get('playerid', ''))
         player_elem.set("id", player_id)
         
-        # Required fields with validation
+        # Required fields
         for field in ['name', 'position', 'team']:
             elem = ET.SubElement(player_elem, field)
             value = player.get(field, '')
             elem.text = str(value) if value else ''
         
-        # Position-specific stats mapping
+        # Add stats based on position
         position = player.get('position', '').upper()
         
-        # Common stats mapping for all positions
-        stats_mapping = {
-            'QB': {
-                'passing_yards': 'passing_yards',
-                'passing_touchdowns': 'passing_touchdowns',
-                'interceptions': 'interceptions',
-                'rushing_yards': 'rushing_yards',
-                'total_points': 'total_points'
-            },
-            'RB': {
-                'rushing_yards': 'rushing_yards',
-                'rushing_touchdowns': 'rushing_touchdowns',
-                'receptions': 'receptions',
-                'receiving_yards': 'receiving_yards',
-                'total_points': 'total_points'
-            },
-            'WR': {
-                'receiving_yards': 'receiving_yards',
-                'receiving_touchdowns': 'receiving_touchdowns',
-                'receptions': 'receptions',
-                'targets': 'targets',
-                'total_points': 'total_points'
-            },
-            'TE': {
-                'receiving_yards': 'receiving_yards',
-                'receiving_touchdowns': 'receiving_touchdowns',
-                'receptions': 'receptions',
-                'targets': 'targets',
-                'total_points': 'total_points'
-            },
-            'LB': {
-                'tackles': 'tackles',
-                'sacks': 'sacks',
-                'interceptions': 'interceptions',
-                'tackles_for_loss': 'tackles_for_loss',
-                'total_points': 'total_points'
-            },
-            'DB': {
-                'tackles': 'tackles',
-                'interceptions': 'interceptions',
-                'passes_defended': 'passes_defended',
-                'forced_fumbles': 'forced_fumbles',
-                'total_points': 'total_points'
-            },
-            'DL': {
-                'tackles': 'tackles',
-                'sacks': 'sacks',
-                'tackles_for_loss': 'tackles_for_loss',
-                'forced_fumbles': 'forced_fumbles',
-                'total_points': 'total_points'
-            }
+        # Map API fields to XML fields
+        field_mapping = {
+            'passing_yards': 'passing_yards',
+            'passing_touchdowns': 'passing_tds',
+            'interceptions': 'interceptions',
+            'rushing_yards': 'rushing_yards',
+            'rushing_touchdowns': 'rushing_tds',
+            'receptions': 'receptions',
+            'receiving_yards': 'receiving_yards',
+            'receiving_touchdowns': 'receiving_tds',
+            'targets': 'targets',
+            'yards_per_reception': 'yards_per_reception',
+            'tackles': 'tackles',
+            'sacks': 'sacks',
+            'tackles_for_loss': 'tackles_for_loss',
+            'passes_defended': 'passes_defended',
+            'forced_fumbles': 'forced_fumbles',
+            'fumble_recoveries': 'fumble_recoveries'
         }
         
-        # Add stats based on position
-        if position in stats_mapping:
-            position_stats = stats_mapping[position]
-            for api_field, xml_field in position_stats.items():
+        # Add all available stats for the player
+        for api_field, xml_field in field_mapping.items():
+            if api_field in player:
                 elem = ET.SubElement(player_elem, xml_field)
                 value = player.get(api_field, 0)
-                # Ensure numeric values
                 try:
                     if isinstance(value, (int, float)):
                         elem.text = str(value)
