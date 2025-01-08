@@ -6,7 +6,7 @@ import os
 
 app = Flask(__name__)
 
-API_BASE_URL = "https://nfl-2024-stats-c0c5c5c5c5c5.herokuapp.com/api"
+API_BASE_URL = "https://nfl-2024-stats.herokuapp.com"
 
 def convert_to_xml(data):
     """Convert player data to XML format"""
