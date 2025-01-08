@@ -118,7 +118,28 @@
                 return;
             }
 
-            const stats = ['receptions', 'total_points', 'targets', 'receiving_yards', 'receiving_tds'];
+            const statsConfig = {
+                'QB': {
+                    stats: ['passing_yards', 'passing_tds', 'completion_percentage', 'interceptions', 'rushing_yards'],
+                    labels: ['Passing Yards', 'Passing TDs', 'Completion %', 'Interceptions', 'Rushing Yards']
+                },
+                'RB': {
+                    stats: ['rushing_yards', 'rushing_tds', 'receptions', 'receiving_yards', 'fumbles'],
+                    labels: ['Rushing Yards', 'Rushing TDs', 'Receptions', 'Receiving Yards', 'Fumbles']
+                },
+                'WR': {
+                    stats: ['receiving_yards', 'receiving_tds', 'receptions', 'targets', 'yards_per_reception'],
+                    labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets', 'Yards per Reception']
+                },
+                'TE': {
+                    stats: ['receiving_yards', 'receiving_tds', 'receptions', 'targets', 'yards_per_reception'],
+                    labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets', 'Yards per Reception']
+                }
+            };
+
+            const position = selectedPlayers[0].position;
+            const { stats, labels } = statsConfig[position];
+
             const datasets = selectedPlayers.map((player, index) => ({
                 label: player.name,
                 data: stats.map(stat => parseFloat(player[stat]) || 0),
@@ -138,7 +159,7 @@
             window.myChart = new Chart(ctx, {
                 type: 'radar',
                 data: {
-                    labels: ['Receptions', 'Total Points', 'Targets', 'Receiving Yards', 'Receiving TDs'],
+                    labels: labels,
                     datasets: datasets
                 },
                 options: {
@@ -152,18 +173,25 @@
                                 color: '#333'
                             },
                             pointLabels: {
-                                color: '#fff'
+                                color: '#fff',
+                                font: {
+                                    size: 12
+                                }
                             },
                             ticks: {
                                 color: '#666',
-                                backdropColor: 'transparent'
+                                backdropColor: 'transparent',
+                                stepSize: Math.ceil(Math.max(...datasets[0].data) / 5)
                             }
                         }
                     },
                     plugins: {
                         legend: {
                             labels: {
-                                color: '#fff'
+                                color: '#fff',
+                                font: {
+                                    size: 14
+                                }
                             }
                         }
                     },
@@ -183,14 +211,27 @@
         async function handleSearch() {
             const query = searchInput.value;
             const position = positionFilter.value;
-            if (query.length < 2) return;
+            if (query.length < 2) {
+                const resultsContainer = document.querySelector('.selected-players');
+                resultsContainer.innerHTML = '';
+                return;
+            }
 
-            const players = await searchPlayers(query, position === 'all' ? 'WR' : position);
-            displaySearchResults(players);
+            try {
+                const players = await searchPlayers(query, position === 'all' ? 'WR' : position);
+                displaySearchResults(players);
+            } catch (error) {
+                console.error('Error searching players:', error);
+            }
         }
 
         function displaySearchResults(players) {
             const resultsContainer = document.querySelector('.selected-players');
+            if (players.length === 0) {
+                resultsContainer.innerHTML = '<div class="no-results">No players found</div>';
+                return;
+            }
+            
             resultsContainer.innerHTML = players.map(player => `
                 <div class="player-card" onclick="addPlayer(${JSON.stringify(player)})">
                     <h3>${player.name}</h3>
