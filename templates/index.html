@@ -192,19 +192,24 @@
                 return;
             }
 
-            const { stats, labels, maxValues } = statsConfig[position];
+            // Find max values from actual data for better scaling
+            const { stats, labels } = statsConfig[position];
+            const maxValues = stats.map(stat => {
+                const values = selectedPlayers.map(player => parseFloat(player[stat]) || 0);
+                const maxVal = Math.max(...values);
+                // Add 20% padding to max value for better visualization
+                return maxVal * 1.2;
+            });
 
-            console.log('Selected players:', selectedPlayers); // Debug log
-            console.log('Stats config:', stats); // Debug log
+            console.log('Max values for scaling:', maxValues);
 
             const datasets = selectedPlayers.map((player, index) => {
-                console.log('Processing player:', player.name); // Debug log
                 const data = stats.map((stat, i) => {
-                    console.log(`Getting stat ${stat} for player ${player.name}:`, player[stat]); // Debug log
                     const value = parseFloat(player[stat]) || 0;
-                    const normalizedValue = (value / maxValues[i]) * 100;
-                    console.log(`Normalized value for ${stat}:`, normalizedValue); // Debug log
-                    return normalizedValue;
+                    // Calculate percentage relative to max value
+                    const percentage = (value / maxValues[i]) * 100;
+                    console.log(`${player.name} - ${stat}: ${value} (${percentage.toFixed(1)}%)`);
+                    return percentage;
                 });
                 
                 const color = getPlayerColor(index);
@@ -259,6 +264,9 @@
                                 stepSize: 20,
                                 font: {
                                     size: 12
+                                },
+                                callback: function(value) {
+                                    return value + '%';
                                 }
                             }
                         }
@@ -281,10 +289,12 @@
                             bodyColor: '#fff',
                             callbacks: {
                                 label: function(context) {
-                                    const value = context.raw;
-                                    const statName = stats[context.dataIndex];
-                                    const originalValue = selectedPlayers[context.datasetIndex][statName];
-                                    return `${context.dataset.label}: ${originalValue} (${value.toFixed(1)}%)`;
+                                    const statIndex = context.dataIndex;
+                                    const playerIndex = context.datasetIndex;
+                                    const stat = stats[statIndex];
+                                    const actualValue = selectedPlayers[playerIndex][stat];
+                                    const percentage = context.raw;
+                                    return `${context.dataset.label}: ${actualValue} (${percentage.toFixed(1)}%)`;
                                 }
                             }
                         }
