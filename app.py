@@ -7,7 +7,7 @@ import os
 app = Flask(__name__)
 
 # Database URL from environment variable for security
-DATABASE_URL = "postgres://u4frfq8rphkr89:pb906d5963e4ac1f17db49d71c8ff2cfddd55faa1f12a6f63aa9a1d1ac938b9a9@clhtb6lu92mj2.cluster-czz5s0kz4scl.eu-west-1.rds.amazonaws.com:5432/d1imqo8lepvt22"
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def convert_to_xml(data):
     """Convert player data to XML format"""
@@ -25,9 +25,9 @@ def index():
 
 @app.route('/api/players/<position>')
 def get_players_by_position(position):
-    # Here you would fetch data from your Heroku API
-    # For now, we'll return a sample response
-    response = requests.get(f'YOUR_API_URL/players/{position}')
+    # Fetch data from your existing API
+    api_url = "https://nfl-stats-api.herokuapp.com/api/players"
+    response = requests.get(f'{api_url}/{position}')
     players = response.json()
     
     # Convert to XML for processing
