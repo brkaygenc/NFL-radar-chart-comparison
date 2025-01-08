@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="players">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="player" maxOccurs="unbounded">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="name" type="xs:string"/>
+                            <xs:element name="position" type="xs:string"/>
+                            <xs:element name="team" type="xs:string"/>
+                            <!-- Offensive Stats -->
+                            <xs:element name="passing_yards" type="xs:integer" minOccurs="0"/>
+                            <xs:element name="passing_tds" type="xs:integer" minOccurs="0"/>
+                            <xs:element name="completion_percentage" type="xs:decimal" minOccurs="0"/>
+                            <xs:element name="interceptions" type="xs:integer" minOccurs="0"/>
+                            <xs:element name="rushing_yards" type="xs:integer" minOccurs="0"/>
+                            <xs:element name="rushing_tds" type="xs:integer" minOccurs="0"/>
+                            <xs:element name="receptions" type="xs:integer" minOccurs="0"/>
+                            <xs:element name="receiving_yards" type="xs:integer" minOccurs="0"/>
+                            <xs:element name="receiving_tds" type="xs:integer" minOccurs="0"/>
+                            <xs:element name="targets" type="xs:integer" minOccurs="0"/>
+                            <xs:element name="yards_per_reception" type="xs:decimal" minOccurs="0"/>
+                            <xs:element name="fumbles" type="xs:integer" minOccurs="0"/>
+                            <!-- Defensive Stats -->
+                            <xs:element name="tackles" type="xs:integer" minOccurs="0"/>
+                            <xs:element name="sacks" type="xs:decimal" minOccurs="0"/>
+                            <xs:element name="tackles_for_loss" type="xs:integer" minOccurs="0"/>
+                            <xs:element name="passes_defended" type="xs:integer" minOccurs="0"/>
+                            <xs:element name="forced_fumbles" type="xs:integer" minOccurs="0"/>
+                            <xs:element name="fumble_recoveries" type="xs:integer" minOccurs="0"/>
+                        </xs:sequence>
+                        <xs:attribute name="id" type="xs:string" use="required"/>
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema> 

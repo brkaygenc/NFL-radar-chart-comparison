@@ -20,6 +20,9 @@
                     <option value="WR">WR</option>
                     <option value="RB">RB</option>
                     <option value="TE">TE</option>
+                    <option value="LB">LB</option>
+                    <option value="DB">DB</option>
+                    <option value="DL">DL</option>
                 </select>
             </div>
         </div>
@@ -42,18 +45,78 @@
         let selectedPlayers = [];
         const maxPlayers = 3;
 
+        const statsConfig = {
+            'QB': {
+                stats: ['passing_yards', 'passing_tds', 'completion_percentage', 'interceptions', 'rushing_yards'],
+                labels: ['Passing Yards', 'Passing TDs', 'Completion %', 'Interceptions', 'Rushing Yards'],
+                maxValues: [5000, 50, 100, 30, 1000]
+            },
+            'RB': {
+                stats: ['rushing_yards', 'rushing_tds', 'receptions', 'receiving_yards', 'fumbles'],
+                labels: ['Rushing Yards', 'Rushing TDs', 'Receptions', 'Receiving Yards', 'Fumbles'],
+                maxValues: [2000, 25, 100, 1000, 10]
+            },
+            'WR': {
+                stats: ['receiving_yards', 'receiving_tds', 'receptions', 'targets', 'yards_per_reception'],
+                labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets', 'Yards per Reception'],
+                maxValues: [2000, 20, 120, 180, 20]
+            },
+            'TE': {
+                stats: ['receiving_yards', 'receiving_tds', 'receptions', 'targets', 'yards_per_reception'],
+                labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets', 'Yards per Reception'],
+                maxValues: [1500, 15, 100, 150, 20]
+            },
+            'LB': {
+                stats: ['tackles', 'sacks', 'interceptions', 'forced_fumbles', 'fumble_recoveries'],
+                labels: ['Tackles', 'Sacks', 'Interceptions', 'Forced Fumbles', 'Fumble Recoveries'],
+                maxValues: [150, 20, 10, 5, 5]
+            },
+            'DB': {
+                stats: ['tackles', 'interceptions', 'passes_defended', 'forced_fumbles', 'fumble_recoveries'],
+                labels: ['Tackles', 'Interceptions', 'Passes Defended', 'Forced Fumbles', 'Fumble Recoveries'],
+                maxValues: [100, 10, 25, 5, 5]
+            },
+            'DL': {
+                stats: ['tackles', 'sacks', 'tackles_for_loss', 'forced_fumbles', 'fumble_recoveries'],
+                labels: ['Tackles', 'Sacks', 'Tackles For Loss', 'Forced Fumbles', 'Fumble Recoveries'],
+                maxValues: [80, 20, 25, 5, 5]
+            }
+        };
+
         async function searchPlayers(query, position) {
             try {
                 const response = await fetch(`/api/players/${position}`);
                 const xmlText = await response.text();
+                
+                // Validate XML against XSD schema
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(xmlText, "text/xml");
                 
-                const players = Array.from(xmlDoc.getElementsByTagName('player')).map(player => {
-                    const playerData = {};
-                    Array.from(player.children).forEach(child => {
-                        playerData[child.tagName] = child.textContent;
+                // Check for parsing errors
+                if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
+                    console.error("XML parsing error:", xmlDoc.getElementsByTagName("parsererror")[0].textContent);
+                    return [];
+                }
+                
+                // Use DOM methods to extract player data
+                const playerNodes = xmlDoc.getElementsByTagName('player');
+                const players = Array.from(playerNodes).map(playerNode => {
+                    const playerData = {
+                        id: playerNode.getAttribute('id')
+                    };
+                    
+                    // Get all child elements
+                    Array.from(playerNode.children).forEach(child => {
+                        const value = child.textContent;
+                        // Convert numeric values
+                        if (!isNaN(value) && value !== '') {
+                            playerData[child.tagName] = child.tagName.includes('percentage') ? 
+                                parseFloat(value) : parseInt(value);
+                        } else {
+                            playerData[child.tagName] = value;
+                        }
                     });
+                    
                     return playerData;
                 });
 
@@ -118,39 +181,34 @@
                 return;
             }
 
-            const statsConfig = {
-                'QB': {
-                    stats: ['passing_yards', 'passing_tds', 'completion_percentage', 'interceptions', 'rushing_yards'],
-                    labels: ['Passing Yards', 'Passing TDs', 'Completion %', 'Interceptions', 'Rushing Yards']
-                },
-                'RB': {
-                    stats: ['rushing_yards', 'rushing_tds', 'receptions', 'receiving_yards', 'fumbles'],
-                    labels: ['Rushing Yards', 'Rushing TDs', 'Receptions', 'Receiving Yards', 'Fumbles']
-                },
-                'WR': {
-                    stats: ['receiving_yards', 'receiving_tds', 'receptions', 'targets', 'yards_per_reception'],
-                    labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets', 'Yards per Reception']
-                },
-                'TE': {
-                    stats: ['receiving_yards', 'receiving_tds', 'receptions', 'targets', 'yards_per_reception'],
-                    labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets', 'Yards per Reception']
-                }
-            };
-
             const position = selectedPlayers[0].position;
-            const { stats, labels } = statsConfig[position];
+            if (!statsConfig[position]) {
+                console.error('No stats configuration for position:', position);
+                return;
+            }
 
-            const datasets = selectedPlayers.map((player, index) => ({
-                label: player.name,
-                data: stats.map(stat => parseFloat(player[stat]) || 0),
-                borderColor: getPlayerColor(index),
-                backgroundColor: `${getPlayerColor(index)}33`,
-                borderWidth: 2,
-                pointBackgroundColor: getPlayerColor(index),
-                pointBorderColor: '#fff',
-                pointHoverBackgroundColor: '#fff',
-                pointHoverBorderColor: getPlayerColor(index)
-            }));
+            const { stats, labels, maxValues } = statsConfig[position];
+
+            const datasets = selectedPlayers.map((player, index) => {
+                const data = stats.map((stat, i) => {
+                    const value = parseFloat(player[stat]) || 0;
+                    // Normalize the value between 0 and 100
+                    return (value / maxValues[i]) * 100;
+                });
+                
+                return {
+                    label: player.name,
+                    data: data,
+                    borderColor: getPlayerColor(index),
+                    backgroundColor: `${getPlayerColor(index)}33`,
+                    borderWidth: 2,
+                    pointBackgroundColor: getPlayerColor(index),
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: getPlayerColor(index),
+                    fill: true
+                };
+            });
 
             if (window.myChart) {
                 window.myChart.destroy();
@@ -163,9 +221,13 @@
                     datasets: datasets
                 },
                 options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
                     scales: {
                         r: {
                             beginAtZero: true,
+                            min: 0,
+                            max: 100,
                             grid: {
                                 color: '#333'
                             },
@@ -181,7 +243,7 @@
                             ticks: {
                                 color: '#666',
                                 backdropColor: 'transparent',
-                                stepSize: Math.ceil(Math.max(...datasets[0].data) / 5)
+                                stepSize: 20
                             }
                         }
                     },
@@ -191,6 +253,15 @@
                                 color: '#fff',
                                 font: {
                                     size: 14
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    const originalValue = selectedPlayers[context.datasetIndex][stats[context.dataIndex]];
+                                    return `${context.dataset.label}: ${originalValue} (${value.toFixed(1)}%)`;
                                 }
                             }
                         }

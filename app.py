@@ -1,10 +1,12 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, send_from_directory
 import requests
 import xml.etree.ElementTree as ET
+from xml.dom import minidom
 import json
 import os
 import logging
 from urllib.parse import urljoin
+from lxml import etree
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -18,19 +20,67 @@ API_BASE_URL = os.environ.get('NFL_API_URL', 'https://nfl-stats-api-2024-63a0f47
 # Updated valid positions to include all available positions
 VALID_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DB', 'DL']
 
+def validate_xml(xml_string, xsd_path):
+    """Validate XML against XSD schema"""
+    try:
+        schema_doc = etree.parse(xsd_path)
+        schema = etree.XMLSchema(schema_doc)
+        xml_doc = etree.fromstring(xml_string.encode('utf-8'))
+        schema.assertValid(xml_doc)
+        return True
+    except Exception as e:
+        logger.error(f"XML validation error: {str(e)}")
+        return False
+
 def convert_to_xml(data):
-    """Convert player data to XML format"""
+    """Convert player data to XML format with proper schema"""
     root = ET.Element("players")
+    root.set("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance")
+    root.set("xsi:noNamespaceSchemaLocation", "static/player_stats.xsd")
+    
     for player in data:
         player_elem = ET.SubElement(root, "player")
-        for key, value in player.items():
-            elem = ET.SubElement(player_elem, key)
-            elem.text = str(value) if value is not None else ""
-    return ET.tostring(root, encoding='unicode')
+        player_elem.set("id", str(player.get('id', '')))
+        
+        # Required fields
+        for field in ['name', 'position', 'team']:
+            elem = ET.SubElement(player_elem, field)
+            elem.text = str(player.get(field, ''))
+        
+        # Stats fields - handle both offensive and defensive stats
+        stats_fields = [
+            # Offensive stats
+            'passing_yards', 'passing_tds', 'completion_percentage', 'interceptions',
+            'rushing_yards', 'rushing_tds', 'receptions', 'receiving_yards',
+            'receiving_tds', 'targets', 'yards_per_reception', 'fumbles',
+            # Defensive stats
+            'tackles', 'sacks', 'tackles_for_loss', 'passes_defended',
+            'forced_fumbles', 'fumble_recoveries'
+        ]
+        
+        for field in stats_fields:
+            if field in player:
+                elem = ET.SubElement(player_elem, field)
+                elem.text = str(player.get(field, '0'))
+    
+    # Convert to string with proper formatting
+    xml_str = ET.tostring(root, encoding='unicode')
+    pretty_xml = minidom.parseString(xml_str).toprettyxml(indent="  ")
+    
+    # Validate XML against schema
+    if not validate_xml(pretty_xml, 'static/player_stats.xsd'):
+        logger.error("Generated XML does not validate against schema")
+        return None
+        
+    return pretty_xml
 
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory('static', filename)
 
 @app.route('/api/players/<position>')
 def get_players_by_position(position):
@@ -57,8 +107,6 @@ def get_players_by_position(position):
         # Add timeout to prevent hanging
         response = requests.get(api_url, headers=headers, timeout=10)
         logger.info(f"API Response Status: {response.status_code}")
-        logger.info(f"API Response Headers: {dict(response.headers)}")
-        logger.info(f"API Response Content: {response.text[:500]}")  # Print first 500 chars for debugging
         
         # Handle different status codes
         if response.status_code == 404:
@@ -83,8 +131,11 @@ def get_players_by_position(position):
             logger.info(f"Number of players found: {len(players)}")
             logger.debug(f"First player data: {players[0] if players else 'No players'}")
             
-            # Convert to XML and return with proper content type
+            # Convert to XML and validate
             xml_data = convert_to_xml(players)
+            if xml_data is None:
+                return jsonify({'error': 'Failed to generate valid XML'}), 500
+                
             return xml_data, 200, {'Content-Type': 'application/xml; charset=utf-8'}
             
         except json.JSONDecodeError as e:

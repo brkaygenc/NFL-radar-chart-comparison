@@ -112,59 +112,57 @@ select:focus {
 }
 
 .comparison-section {
-    background-color: #2a2a2a;
-    padding: 30px;
+    margin-top: 30px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.2);
     border-radius: 10px;
 }
 
 .player-tags {
     display: flex;
-    gap: 15px;
-    margin-bottom: 20px;
     flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
 }
 
 .player-tag {
-    padding: 10px 15px;
-    background-color: #333;
-    border-radius: 5px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid;
     display: flex;
     align-items: center;
     gap: 10px;
-    border: 2px solid;
 }
 
 .player-tag .position {
-    color: #888;
+    opacity: 0.7;
     font-size: 0.9em;
 }
 
-.remove-btn {
+.player-tag .remove-btn {
     background: none;
     border: none;
-    color: #fff;
+    color: inherit;
     cursor: pointer;
-    font-size: 18px;
     padding: 0 5px;
+    font-size: 1.2em;
 }
 
-.remove-btn:hover {
-    color: #ff4444;
+.player-tag .remove-btn:hover {
+    opacity: 0.7;
 }
 
 .charts-container {
     width: 100%;
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-    background-color: #2a2a2a;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    height: 400px;
+    margin: 20px auto;
+    position: relative;
 }
 
-canvas {
-    max-width: 100%;
-    height: auto;
+#statsChart {
+    width: 100% !important;
+    height: 100% !important;
 }
 
 .no-results {
