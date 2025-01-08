@@ -91,16 +91,23 @@
                     return [];
                 }
 
-                console.log(`Searching for ${query} in position ${position}`);
-                const response = await fetch(`/api/players/${position}`);
+                const apiUrl = `/api/players/${position}`;
+                console.log(`Making API request to: ${apiUrl}`);
+                console.log(`Search query: "${query}", Position: "${position}"`);
+                
+                const response = await fetch(apiUrl);
+                console.log('Response status:', response.status);
+                console.log('Response headers:', Object.fromEntries(response.headers));
                 
                 if (!response.ok) {
+                    const errorText = await response.text();
                     console.error(`HTTP error! status: ${response.status}`);
+                    console.error('Error response:', errorText);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
                 const xmlText = await response.text();
-                console.log('Received XML response');
+                console.log('Raw XML response:', xmlText);
                 
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(xmlText, "text/xml");
@@ -108,6 +115,7 @@
                 if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
                     const error = xmlDoc.getElementsByTagName("parsererror")[0].textContent;
                     console.error("XML parsing error:", error);
+                    console.error("Problematic XML:", xmlText);
                     throw new Error(`XML parsing error: ${error}`);
                 }
                 
@@ -122,13 +130,8 @@
                     Array.from(playerNode.children).forEach(child => {
                         const tagName = child.tagName.toLowerCase();
                         const value = child.textContent.trim();
-                        
-                        // Convert numeric values
-                        if (!isNaN(value) && value !== '') {
-                            playerData[tagName] = parseFloat(value);
-                        } else {
-                            playerData[tagName] = value;
-                        }
+                        playerData[tagName] = value;
+                        console.log(`Player ${playerData.id} - ${tagName}: ${value}`);
                     });
                     
                     return playerData;
@@ -140,10 +143,14 @@
                         console.log('Player missing name:', player);
                         return false;
                     }
-                    return player.name.toLowerCase().includes(query.toLowerCase());
+                    const match = player.name.toLowerCase().includes(query.toLowerCase());
+                    if (match) {
+                        console.log('Found matching player:', player.name);
+                    }
+                    return match;
                 }).slice(0, 5); // Limit to top 5 matches
 
-                console.log(`Found ${filteredPlayers.length} matching players`);
+                console.log(`Found ${filteredPlayers.length} matching players:`, filteredPlayers);
                 return filteredPlayers;
             } catch (error) {
                 console.error('Error searching players:', error);

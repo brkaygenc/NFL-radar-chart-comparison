@@ -51,10 +51,15 @@ def make_api_request(endpoint):
         'User-Agent': 'NFL-Stats-Visualizer/1.0'
     }
     try:
+        logger.info(f"Sending request with headers: {headers}")
         response = requests.get(url, headers=headers, timeout=10)
+        logger.info(f"Response status code: {response.status_code}")
+        logger.info(f"Response headers: {dict(response.headers)}")
+        
         response.raise_for_status()
         data = response.json()
         logger.info(f"Received {len(data)} records from API")
+        logger.debug(f"First record sample: {str(data[0]) if data else 'No data'}")
         return data
     except requests.exceptions.RequestException as e:
         logger.error(f"API request failed: {str(e)}")
