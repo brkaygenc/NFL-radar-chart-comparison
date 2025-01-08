@@ -44,6 +44,8 @@ VALID_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DB', 'DL']
 def make_api_request(endpoint):
     """Make a request to the NFL stats API"""
     url = f"{API_BASE_URL}{endpoint}"
+    logger.info(f"Making API request to: {url}")
+    
     headers = {
         'Accept': 'application/json',
         'User-Agent': 'NFL-Stats-Visualizer/1.0'
@@ -51,9 +53,12 @@ def make_api_request(endpoint):
     try:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+        logger.info(f"Received {len(data)} records from API")
+        return data
     except requests.exceptions.RequestException as e:
         logger.error(f"API request failed: {str(e)}")
+        logger.error(f"Response content: {response.text if response else 'No response'}")
         return None
 
 def validate_xml(xml_string, xsd_path):
@@ -174,16 +179,24 @@ def get_players_by_position(position):
     try:
         position = position.upper()
         if position not in VALID_POSITIONS:
+            logger.warning(f"Invalid position requested: {position}")
             return jsonify({'error': 'Invalid position', 'valid_positions': VALID_POSITIONS}), 400
 
+        logger.info(f"Fetching players for position: {position}")
         players = make_api_request(f'/api/players/{position}')
+        
         if players is None:
+            logger.error("Failed to fetch player data from API")
             return jsonify({'error': 'Failed to fetch player data'}), 503
 
+        logger.info(f"Converting {len(players)} players to XML")
         xml_data = convert_to_xml(players)
+        
         if not validate_xml(xml_data, 'static/player_stats.xsd'):
+            logger.error("Generated XML failed validation")
             return jsonify({'error': 'Generated XML failed validation'}), 500
 
+        logger.info("Successfully generated and validated XML")
         return xml_data, 200, {'Content-Type': 'application/xml; charset=utf-8'}
 
     except Exception as e:

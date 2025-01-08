@@ -91,23 +91,29 @@
                     return [];
                 }
 
+                console.log(`Searching for ${query} in position ${position}`);
                 const response = await fetch(`/api/players/${position}`);
+                
                 if (!response.ok) {
+                    console.error(`HTTP error! status: ${response.status}`);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
                 const xmlText = await response.text();
-                console.log('Raw XML:', xmlText);
+                console.log('Received XML response');
                 
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(xmlText, "text/xml");
                 
                 if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
-                    console.error("XML parsing error:", xmlDoc.getElementsByTagName("parsererror")[0].textContent);
-                    return [];
+                    const error = xmlDoc.getElementsByTagName("parsererror")[0].textContent;
+                    console.error("XML parsing error:", error);
+                    throw new Error(`XML parsing error: ${error}`);
                 }
                 
                 const playerNodes = xmlDoc.getElementsByTagName('player');
+                console.log(`Found ${playerNodes.length} players in XML`);
+                
                 const players = Array.from(playerNodes).map(playerNode => {
                     const playerData = {
                         id: playerNode.getAttribute('id') || ''
@@ -128,16 +134,20 @@
                     return playerData;
                 });
 
-                // More precise filtering
-                const filteredPlayers = players.filter(player => 
-                    player.name && player.name.toLowerCase().includes(query.toLowerCase())
-                ).slice(0, 5); // Limit to top 5 matches
+                // More precise filtering with name check
+                const filteredPlayers = players.filter(player => {
+                    if (!player.name) {
+                        console.log('Player missing name:', player);
+                        return false;
+                    }
+                    return player.name.toLowerCase().includes(query.toLowerCase());
+                }).slice(0, 5); // Limit to top 5 matches
 
-                console.log('Filtered players:', filteredPlayers);
+                console.log(`Found ${filteredPlayers.length} matching players`);
                 return filteredPlayers;
             } catch (error) {
                 console.error('Error searching players:', error);
-                return [];
+                throw error;
             }
         }
 
@@ -361,6 +371,9 @@
             const query = searchInput.value.trim();
             const position = positionFilter.value;
 
+            // Show loading state
+            resultsContainer.innerHTML = '<div class="no-results">Searching...</div>';
+
             if (query.length < 2) {
                 resultsContainer.innerHTML = '<div class="no-results">Please enter at least 2 characters</div>';
                 return;
@@ -371,12 +384,12 @@
                 displaySearchResults(players);
             } catch (error) {
                 console.error('Error searching players:', error);
-                resultsContainer.innerHTML = '<div class="no-results">Error searching players</div>';
+                resultsContainer.innerHTML = `<div class="no-results">Error: ${error.message}</div>`;
             }
         }
 
         function displaySearchResults(players) {
-            if (players.length === 0) {
+            if (!players || players.length === 0) {
                 resultsContainer.innerHTML = '<div class="no-results">No players found</div>';
                 return;
             }
