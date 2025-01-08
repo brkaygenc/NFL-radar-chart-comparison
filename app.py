@@ -102,6 +102,7 @@ def convert_to_xml(data):
         
         # Map API fields to XML fields
         field_mapping = {
+            # Offensive Stats
             'passing_yards': 'passing_yards',
             'passing_touchdowns': 'passing_touchdowns',
             'interceptions': 'interceptions',
@@ -112,12 +113,19 @@ def convert_to_xml(data):
             'receiving_touchdowns': 'receiving_touchdowns',
             'targets': 'targets',
             'yards_per_reception': 'yards_per_reception',
+            # Defensive Stats
             'tackles': 'tackles',
             'sacks': 'sacks',
             'tackles_for_loss': 'tackles_for_loss',
             'passes_defended': 'passes_defended',
             'forced_fumbles': 'forced_fumbles',
             'fumble_recoveries': 'fumble_recoveries',
+            # Kicker Stats
+            'fieldgoals': 'fieldgoals',
+            'fieldgoal_attempts': 'fieldgoal_attempts',
+            'extrapoints': 'extrapoints',
+            'extrapoint_attempts': 'extrapoint_attempts',
+            # Fantasy Points
             'total_points': 'total_points'
         }
         

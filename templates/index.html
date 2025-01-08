@@ -19,6 +19,7 @@
                     <option value="WR">WR</option>
                     <option value="RB">RB</option>
                     <option value="TE">TE</option>
+                    <option value="K">K</option>
                     <option value="LB">LB</option>
                     <option value="DB">DB</option>
                     <option value="DL">DL</option>
@@ -67,10 +68,15 @@
                 labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets', 'Total Points'],
                 maxValues: [1500, 15, 100, 150, 300]
             },
+            'K': {
+                stats: ['fieldgoals', 'fieldgoal_attempts', 'extrapoints', 'extrapoint_attempts', 'total_points'],
+                labels: ['Field Goals', 'FG Attempts', 'Extra Points', 'XP Attempts', 'Total Points'],
+                maxValues: [40, 45, 60, 65, 200]
+            },
             'LB': {
-                stats: ['tackles', 'sacks', 'interceptions', 'tackles_for_loss', 'total_points'],
-                labels: ['Tackles', 'Sacks', 'Interceptions', 'Tackles For Loss', 'Total Points'],
-                maxValues: [150, 15, 8, 25, 200]
+                stats: ['tackles', 'sacks', 'tackles_for_loss', 'interceptions', 'total_points'],
+                labels: ['Tackles', 'Sacks', 'TFL', 'Interceptions', 'Total Points'],
+                maxValues: [150, 15, 25, 8, 200]
             },
             'DB': {
                 stats: ['tackles', 'interceptions', 'passes_defended', 'forced_fumbles', 'total_points'],
@@ -79,7 +85,7 @@
             },
             'DL': {
                 stats: ['tackles', 'sacks', 'tackles_for_loss', 'forced_fumbles', 'total_points'],
-                labels: ['Tackles', 'Sacks', 'Tackles For Loss', 'Forced Fumbles', 'Total Points'],
+                labels: ['Tackles', 'Sacks', 'TFL', 'Forced Fumbles', 'Total Points'],
                 maxValues: [100, 20, 25, 5, 200]
             }
         };

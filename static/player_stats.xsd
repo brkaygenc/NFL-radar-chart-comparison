@@ -27,6 +27,11 @@
                             <xs:element name="passes_defended" type="xs:integer" minOccurs="0"/>
                             <xs:element name="forced_fumbles" type="xs:integer" minOccurs="0"/>
                             <xs:element name="fumble_recoveries" type="xs:integer" minOccurs="0"/>
+                            <!-- Kicker Stats -->
+                            <xs:element name="fieldgoals" type="xs:integer" minOccurs="0"/>
+                            <xs:element name="fieldgoal_attempts" type="xs:integer" minOccurs="0"/>
+                            <xs:element name="extrapoints" type="xs:integer" minOccurs="0"/>
+                            <xs:element name="extrapoint_attempts" type="xs:integer" minOccurs="0"/>
                             <!-- Fantasy Points -->
                             <xs:element name="total_points" type="xs:decimal" minOccurs="0"/>
                         </xs:sequence>
