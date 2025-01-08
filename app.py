@@ -83,27 +83,78 @@ def convert_to_xml(data):
             elem = ET.SubElement(player_elem, field)
             elem.text = str(player.get(field, ''))
         
-        # Map API fields to XML fields based on position
+        # Position-specific stats mapping
         position = player.get('position', '').upper()
         
-        # Position-specific stats mapping
+        # Common stats mapping for all positions
         stats_mapping = {
-            'QB': ['passing_yards', 'passing_touchdowns', 'interceptions'],
-            'RB': ['rushing_yards', 'rushing_touchdowns', 'receptions'],
-            'WR': ['receiving_yards', 'receptions', 'targets', 'receiving_touchdowns'],
-            'TE': ['receiving_yards', 'receptions', 'targets', 'receiving_touchdowns'],
-            'K': ['field_goals_made', 'field_goals_attempted', 'extra_points_made'],
-            'LB': ['tackles', 'sacks', 'interceptions'],
-            'DB': ['tackles', 'interceptions', 'passes_defended'],
-            'DL': ['tackles', 'sacks', 'tackles_for_loss']
+            'QB': {
+                'passing_yards': 'passing_yards',
+                'passing_touchdowns': 'passing_tds',
+                'interceptions': 'interceptions',
+                'rushing_yards': 'rushing_yards',
+                'completion_percentage': 'completion_percentage'
+            },
+            'RB': {
+                'rushing_yards': 'rushing_yards',
+                'rushing_touchdowns': 'rushing_tds',
+                'receptions': 'receptions',
+                'receiving_yards': 'receiving_yards',
+                'fumbles': 'fumbles'
+            },
+            'WR': {
+                'receiving_yards': 'receiving_yards',
+                'receiving_touchdowns': 'receiving_tds',
+                'receptions': 'receptions',
+                'targets': 'targets',
+                'yards_per_reception': 'yards_per_reception'
+            },
+            'TE': {
+                'receiving_yards': 'receiving_yards',
+                'receiving_touchdowns': 'receiving_tds',
+                'receptions': 'receptions',
+                'targets': 'targets',
+                'yards_per_reception': 'yards_per_reception'
+            },
+            'LB': {
+                'tackles': 'tackles',
+                'sacks': 'sacks',
+                'interceptions': 'interceptions',
+                'tackles_for_loss': 'tackles_for_loss',
+                'forced_fumbles': 'forced_fumbles'
+            },
+            'DB': {
+                'tackles': 'tackles',
+                'interceptions': 'interceptions',
+                'passes_defended': 'passes_defended',
+                'forced_fumbles': 'forced_fumbles',
+                'fumble_recoveries': 'fumble_recoveries'
+            },
+            'DL': {
+                'tackles': 'tackles',
+                'sacks': 'sacks',
+                'tackles_for_loss': 'tackles_for_loss',
+                'forced_fumbles': 'forced_fumbles',
+                'fumble_recoveries': 'fumble_recoveries'
+            }
         }
         
         # Add stats based on position
         if position in stats_mapping:
-            for stat in stats_mapping[position]:
-                if stat in player:
-                    elem = ET.SubElement(player_elem, stat)
-                    elem.text = str(player.get(stat, '0'))
+            position_stats = stats_mapping[position]
+            for api_field, xml_field in position_stats.items():
+                if api_field in player:
+                    elem = ET.SubElement(player_elem, xml_field)
+                    # Convert to appropriate type based on schema
+                    value = player.get(api_field, '0')
+                    if isinstance(value, (int, float)):
+                        elem.text = str(value)
+                    else:
+                        try:
+                            # Try to convert string to number if possible
+                            elem.text = str(float(value))
+                        except (ValueError, TypeError):
+                            elem.text = '0'
     
     xml_str = ET.tostring(root, encoding='unicode')
     return minidom.parseString(xml_str).toprettyxml(indent="  ")
