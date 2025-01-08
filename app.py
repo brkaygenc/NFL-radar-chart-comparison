@@ -10,6 +10,8 @@ app = Flask(__name__)
 
 # Database URL from environment variable for security
 DATABASE_URL = os.environ.get('DATABASE_URL')
+if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
 def convert_to_xml(data):
     """Convert player data to XML format"""
