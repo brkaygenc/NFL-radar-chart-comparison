@@ -25,14 +25,28 @@ def index():
 
 @app.route('/api/players/<position>')
 def get_players_by_position(position):
-    # Fetch data from your existing API
-    api_url = "https://nfl-stats-api.herokuapp.com/api/players"
-    response = requests.get(f'{api_url}/{position}')
-    players = response.json()
-    
-    # Convert to XML for processing
-    xml_data = convert_to_xml(players)
-    return xml_data, 200, {'Content-Type': 'application/xml'}
+    try:
+        # Connect to your PostgreSQL database directly
+        import psycopg2
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor()
+        
+        # Query based on position
+        cur.execute("SELECT * FROM players WHERE position = %s", (position,))
+        columns = [desc[0] for desc in cur.description]
+        results = cur.fetchall()
+        
+        # Convert to list of dictionaries
+        players = [dict(zip(columns, row)) for row in results]
+        
+        cur.close()
+        conn.close()
+        
+        # Convert to XML for processing
+        xml_data = convert_to_xml(players)
+        return xml_data, 200, {'Content-Type': 'application/xml'}
+    except Exception as e:
+        return str(e), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
