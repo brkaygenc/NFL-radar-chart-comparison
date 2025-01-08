@@ -49,7 +49,8 @@
             'QB': {
                 stats: ['passingyards', 'passingtds', 'interceptions', 'rushingyards', 'totalpoints'],
                 labels: ['Passing Yards', 'Passing TDs', 'Interceptions', 'Rushing Yards', 'Total Points'],
-                maxValues: [4000, 40, 15, 800, 400]
+                maxValues: [4000, 40, 15, 800, 400],
+                invertedStats: ['interceptions']
             },
             'RB': {
                 stats: ['rushingyards', 'rushingtds', 'receptions', 'receivingyards', 'totalpoints'],
@@ -206,11 +207,21 @@
             const datasets = selectedPlayers.map((player, index) => {
                 console.log('Processing player:', player);
                 const data = config.stats.map((stat, i) => {
-                    const value = parseFloat(player[stat]) || 0;
-                    // Normalize to percentage
-                    const percentage = (value / maxValues[i]) * 100;
-                    console.log(`${player.name} - ${stat}: ${value} (${percentage.toFixed(1)}%)`);
-                    return percentage;
+                    let value = parseFloat(player[stat]) || 0;
+                    console.log(`Raw value for ${stat}:`, value);
+                    
+                    // For inverted stats (like interceptions), invert the percentage
+                    if (config.invertedStats && config.invertedStats.includes(stat)) {
+                        // Invert the value (lower is better)
+                        const percentage = ((maxValues[i] - value) / maxValues[i]) * 100;
+                        console.log(`Inverted ${stat}: ${value} -> ${percentage.toFixed(1)}%`);
+                        return percentage;
+                    } else {
+                        // Normal percentage calculation (higher is better)
+                        const percentage = (value / maxValues[i]) * 100;
+                        console.log(`Normal ${stat}: ${value} -> ${percentage.toFixed(1)}%`);
+                        return percentage;
+                    }
                 });
 
                 const color = getPlayerColor(index);
@@ -295,7 +306,13 @@
                                     const stat = config.stats[statIndex];
                                     const actualValue = selectedPlayers[playerIndex][stat];
                                     const percentage = context.raw;
-                                    return `${context.dataset.label}: ${actualValue} (${percentage.toFixed(1)}%)`;
+                                    
+                                    // For inverted stats, explain that lower is better
+                                    if (config.invertedStats && config.invertedStats.includes(stat)) {
+                                        return `${context.dataset.label}: ${actualValue} (${percentage.toFixed(1)}% - lower is better)`;
+                                    } else {
+                                        return `${context.dataset.label}: ${actualValue} (${percentage.toFixed(1)}%)`;
+                                    }
                                 }
                             }
                         }
