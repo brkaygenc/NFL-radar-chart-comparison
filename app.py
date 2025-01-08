@@ -130,6 +130,8 @@ def get_players_by_position(position):
         # Add timeout to prevent hanging
         response = requests.get(api_url, headers=headers, timeout=10)
         logger.info(f"API Response Status: {response.status_code}")
+        logger.info(f"API Response Headers: {response.headers}")
+        logger.info(f"API Response Content: {response.text[:500]}")  # Log first 500 chars
         
         # Handle different status codes
         if response.status_code == 404:
@@ -147,18 +149,21 @@ def get_players_by_position(position):
             
         try:
             players = response.json()
+            logger.info(f"Successfully parsed JSON response. Type: {type(players)}")
+            logger.info(f"First player data: {players[0] if players else 'No players'}")
+            
             if not isinstance(players, list):
                 logger.error(f"Invalid API response format for position {position}. Got: {type(players)}")
                 return jsonify({'error': 'Invalid API response format. Expected an array of players.'}), 500
                 
             logger.info(f"Number of players found: {len(players)}")
-            logger.debug(f"First player data: {players[0] if players else 'No players'}")
             
             # Convert to XML and validate
             xml_data = convert_to_xml(players)
             if xml_data is None:
                 return jsonify({'error': 'Failed to generate valid XML'}), 500
                 
+            logger.info("Successfully generated and validated XML")
             return xml_data, 200, {'Content-Type': 'application/xml; charset=utf-8'}
             
         except json.JSONDecodeError as e:
