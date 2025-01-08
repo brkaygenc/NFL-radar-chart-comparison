@@ -47,13 +47,29 @@ def convert_to_xml(data):
             elem = ET.SubElement(player_elem, field)
             elem.text = str(player.get(field, ''))
         
-        # Map API fields to our XML fields
+        # Map API fields to our XML fields based on position
+        position = player.get('position', '').upper()
+        
+        # Common fields for all positions
         field_mapping = {
+            # Offensive stats
             'passing_yards': 'passingyards',
+            'passing_touchdowns': 'passingtds',
             'rushing_yards': 'rushingyards',
+            'rushing_touchdowns': 'rushingtds',
             'receiving_yards': 'receivingyards',
-            'touchdowns': 'totalpoints',  # Using touchdowns as total points for now
-            'interceptions': 'interceptions'
+            'receiving_touchdowns': 'receivingtds',
+            'receptions': 'receptions',
+            'targets': 'targets',
+            'total_points': 'totalpoints',
+            'interceptions': 'interceptions',
+            # Defensive stats
+            'tackles': 'tackles',
+            'sacks': 'sacks',
+            'passes_defended': 'passes_defended',
+            'forced_fumbles': 'forced_fumbles',
+            'tackles_for_loss': 'tackles_tfl',
+            'qb_hits': 'qb_hits'
         }
         
         # Log the available fields in the player data
