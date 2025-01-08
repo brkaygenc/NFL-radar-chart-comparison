@@ -76,12 +76,15 @@ def convert_to_xml(data):
     
     for player in data:
         player_elem = ET.SubElement(root, "player")
-        player_elem.set("id", str(player.get('id', '')))
+        # Use playerid if available, otherwise use a fallback
+        player_id = str(player.get('playerid', player.get('id', '')))
+        player_elem.set("id", player_id)
         
-        # Required fields
+        # Required fields with validation
         for field in ['name', 'position', 'team']:
             elem = ET.SubElement(player_elem, field)
-            elem.text = str(player.get(field, ''))
+            value = player.get(field, '')
+            elem.text = str(value) if value else ''
         
         # Position-specific stats mapping
         position = player.get('position', '').upper()
@@ -143,18 +146,17 @@ def convert_to_xml(data):
         if position in stats_mapping:
             position_stats = stats_mapping[position]
             for api_field, xml_field in position_stats.items():
-                if api_field in player:
-                    elem = ET.SubElement(player_elem, xml_field)
-                    # Convert to appropriate type based on schema
-                    value = player.get(api_field, '0')
+                elem = ET.SubElement(player_elem, xml_field)
+                value = player.get(api_field, 0)
+                # Ensure numeric values
+                try:
                     if isinstance(value, (int, float)):
                         elem.text = str(value)
                     else:
-                        try:
-                            # Try to convert string to number if possible
-                            elem.text = str(float(value))
-                        except (ValueError, TypeError):
-                            elem.text = '0'
+                        elem.text = str(float(value)) if value else '0'
+                except (ValueError, TypeError):
+                    elem.text = '0'
+                    logger.warning(f"Invalid value for {api_field}: {value}, defaulting to 0")
     
     xml_str = ET.tostring(root, encoding='unicode')
     return minidom.parseString(xml_str).toprettyxml(indent="  ")

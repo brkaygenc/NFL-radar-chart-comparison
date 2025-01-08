@@ -86,7 +86,16 @@
 
         async function searchPlayers(query, position) {
             try {
+                // Don't search if query is too short
+                if (query.length < 2) {
+                    return [];
+                }
+
                 const response = await fetch(`/api/players/${position}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const xmlText = await response.text();
                 console.log('Raw XML:', xmlText);
                 
@@ -100,13 +109,13 @@
                 
                 const playerNodes = xmlDoc.getElementsByTagName('player');
                 const players = Array.from(playerNodes).map(playerNode => {
-                    const playerData = {};
+                    const playerData = {
+                        id: playerNode.getAttribute('id') || ''
+                    };
                     
-                    // Get all child elements and log them
                     Array.from(playerNode.children).forEach(child => {
                         const tagName = child.tagName.toLowerCase();
                         const value = child.textContent.trim();
-                        console.log(`Found tag: ${tagName} with value: ${value}`);
                         
                         // Convert numeric values
                         if (!isNaN(value) && value !== '') {
@@ -116,19 +125,33 @@
                         }
                     });
                     
-                    console.log('Complete player data:', playerData);
                     return playerData;
                 });
 
+                // More precise filtering
                 const filteredPlayers = players.filter(player => 
-                    player.name.toLowerCase().includes(query.toLowerCase())
-                );
+                    player.name && player.name.toLowerCase().includes(query.toLowerCase())
+                ).slice(0, 5); // Limit to top 5 matches
+
                 console.log('Filtered players:', filteredPlayers);
                 return filteredPlayers;
             } catch (error) {
                 console.error('Error searching players:', error);
                 return [];
             }
+        }
+
+        // Debounce function to limit API calls
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
         }
 
         function createPlayerTag(player) {
@@ -332,26 +355,27 @@
         // Search functionality
         const searchInput = document.getElementById('playerSearch');
         const positionFilter = document.getElementById('positionFilter');
+        const resultsContainer = document.querySelector('.selected-players');
 
         async function handleSearch() {
-            const query = searchInput.value;
+            const query = searchInput.value.trim();
             const position = positionFilter.value;
+
             if (query.length < 2) {
-                const resultsContainer = document.querySelector('.selected-players');
-                resultsContainer.innerHTML = '';
+                resultsContainer.innerHTML = '<div class="no-results">Please enter at least 2 characters</div>';
                 return;
             }
 
             try {
-                const players = await searchPlayers(query, position === 'all' ? 'WR' : position);
+                const players = await searchPlayers(query, position);
                 displaySearchResults(players);
             } catch (error) {
                 console.error('Error searching players:', error);
+                resultsContainer.innerHTML = '<div class="no-results">Error searching players</div>';
             }
         }
 
         function displaySearchResults(players) {
-            const resultsContainer = document.querySelector('.selected-players');
             if (players.length === 0) {
                 resultsContainer.innerHTML = '<div class="no-results">No players found</div>';
                 return;
@@ -361,14 +385,18 @@
                 <div class="player-card">
                     <h3>${player.name}</h3>
                     <p>${player.position} - ${player.team}</p>
-                    <button class="add-btn" onclick="addPlayer(${JSON.stringify(player).replace(/"/g, '&quot;')})">
+                    <button class="add-btn" onclick='addPlayer(${JSON.stringify(player).replace(/'/g, "\\'")})'">
                         ADD TO COMPARE
                     </button>
                 </div>
             `).join('');
         }
 
-        searchInput.addEventListener('input', handleSearch);
+        // Debounced search handler for input events
+        const debouncedSearch = debounce(() => handleSearch(), 300);
+
+        // Event listeners
+        searchInput.addEventListener('input', debouncedSearch);
         positionFilter.addEventListener('change', handleSearch);
     </script>
 </body>
