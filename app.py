@@ -103,13 +103,13 @@ def convert_to_xml(data):
         # Map API fields to XML fields
         field_mapping = {
             'passing_yards': 'passing_yards',
-            'passing_touchdowns': 'passing_tds',
+            'passing_touchdowns': 'passing_touchdowns',
             'interceptions': 'interceptions',
             'rushing_yards': 'rushing_yards',
-            'rushing_touchdowns': 'rushing_tds',
+            'rushing_touchdowns': 'rushing_touchdowns',
             'receptions': 'receptions',
             'receiving_yards': 'receiving_yards',
-            'receiving_touchdowns': 'receiving_tds',
+            'receiving_touchdowns': 'receiving_touchdowns',
             'targets': 'targets',
             'yards_per_reception': 'yards_per_reception',
             'tackles': 'tackles',
@@ -117,7 +117,8 @@ def convert_to_xml(data):
             'tackles_for_loss': 'tackles_for_loss',
             'passes_defended': 'passes_defended',
             'forced_fumbles': 'forced_fumbles',
-            'fumble_recoveries': 'fumble_recoveries'
+            'fumble_recoveries': 'fumble_recoveries',
+            'total_points': 'total_points'
         }
         
         # Add all available stats for the player
