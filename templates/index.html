@@ -10,12 +10,11 @@
 </head>
 <body>
     <div class="container">
+        <h1>NFL PLAYER STATS COMPARISON</h1>
         <div class="search-section">
-            <h1>Search Results</h1>
             <div class="search-box">
                 <input type="text" id="playerSearch" placeholder="Search for a player...">
                 <select id="positionFilter">
-                    <option value="all">All Positions</option>
                     <option value="QB">QB</option>
                     <option value="WR">WR</option>
                     <option value="RB">RB</option>
@@ -24,26 +23,27 @@
                     <option value="DB">DB</option>
                     <option value="DL">DL</option>
                 </select>
+                <button onclick="handleSearch()" class="search-btn">Search</button>
             </div>
         </div>
 
+        <h2>Search Results</h2>
         <div class="selected-players">
             <!-- Selected player cards will be displayed here -->
         </div>
 
-        <div class="comparison-section">
-            <div class="player-tags">
-                <!-- Player comparison tags will be displayed here -->
-            </div>
-            <div class="charts-container">
-                <canvas id="statsChart"></canvas>
-            </div>
+        <div class="player-tags">
+            <!-- Player comparison tags will be displayed here -->
+        </div>
+
+        <div class="charts-container">
+            <canvas id="statsChart"></canvas>
         </div>
     </div>
 
     <script>
         let selectedPlayers = [];
-        const maxPlayers = 3;
+        const maxPlayers = 5;
 
         const statsConfig = {
             'QB': {
@@ -141,13 +141,20 @@
         }
 
         function getPlayerColor(index) {
-            const colors = ['#ff4444', '#00c3ff', '#44ff44'];
+            // More colors for more players
+            const colors = [
+                '#ff4444', // Red
+                '#00c3ff', // Blue
+                '#44ff44', // Green
+                '#ff44ff', // Purple
+                '#ffff44'  // Yellow
+            ];
             return colors[index % colors.length];
         }
 
         function addPlayer(player) {
             if (selectedPlayers.length >= maxPlayers) {
-                alert('You can only compare up to 3 players');
+                alert('You can only compare up to 5 players');
                 return;
             }
             if (selectedPlayers.some(p => p.name === player.name)) {
@@ -196,16 +203,17 @@
                     return (value / maxValues[i]) * 100;
                 });
                 
+                const color = getPlayerColor(index);
                 return {
                     label: player.name,
                     data: data,
-                    borderColor: getPlayerColor(index),
-                    backgroundColor: `${getPlayerColor(index)}33`,
+                    borderColor: color,
+                    backgroundColor: `${color}33`,
                     borderWidth: 2,
-                    pointBackgroundColor: getPlayerColor(index),
+                    pointBackgroundColor: color,
                     pointBorderColor: '#fff',
                     pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: getPlayerColor(index),
+                    pointHoverBorderColor: color,
                     fill: true
                 };
             });
@@ -229,34 +237,44 @@
                             min: 0,
                             max: 100,
                             grid: {
-                                color: '#333'
+                                color: 'rgba(255, 255, 255, 0.1)'
                             },
                             angleLines: {
-                                color: '#333'
+                                color: 'rgba(255, 255, 255, 0.1)'
                             },
                             pointLabels: {
                                 color: '#fff',
                                 font: {
-                                    size: 12
+                                    size: 14,
+                                    weight: 'bold'
                                 }
                             },
                             ticks: {
-                                color: '#666',
+                                color: 'rgba(255, 255, 255, 0.5)',
                                 backdropColor: 'transparent',
-                                stepSize: 20
+                                stepSize: 20,
+                                font: {
+                                    size: 12
+                                }
                             }
                         }
                     },
                     plugins: {
                         legend: {
+                            position: 'bottom',
                             labels: {
                                 color: '#fff',
                                 font: {
-                                    size: 14
-                                }
+                                    size: 14,
+                                    weight: 'bold'
+                                },
+                                padding: 20
                             }
                         },
                         tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
                             callbacks: {
                                 label: function(context) {
                                     const value = context.raw;
@@ -304,10 +322,12 @@
             }
             
             resultsContainer.innerHTML = players.map(player => `
-                <div class="player-card" onclick="addPlayer(${JSON.stringify(player)})">
+                <div class="player-card">
                     <h3>${player.name}</h3>
                     <p>${player.position} - ${player.team}</p>
-                    <button class="add-btn">ADD TO COMPARE</button>
+                    <button class="add-btn" onclick="addPlayer(${JSON.stringify(player).replace(/"/g, '&quot;')})">
+                        ADD TO COMPARE
+                    </button>
                 </div>
             `).join('');
         }
