@@ -100,48 +100,76 @@ def convert_to_xml(data):
         # Add stats based on position
         position = player.get('position', '').upper()
         
-        # Map API fields to XML fields
-        field_mapping = {
+        # Initialize all possible stats with default values
+        default_stats = {
             # Offensive Stats
-            'passing_yards': 'passing_yards',
-            'passing_touchdowns': 'passing_touchdowns',
-            'interceptions': 'interceptions',
-            'rushing_yards': 'rushing_yards',
-            'rushing_touchdowns': 'rushing_touchdowns',
-            'receptions': 'receptions',
-            'receiving_yards': 'receiving_yards',
-            'receiving_touchdowns': 'receiving_touchdowns',
-            'targets': 'targets',
-            'yards_per_reception': 'yards_per_reception',
+            'passing_yards': '0',
+            'passing_touchdowns': '0',
+            'interceptions': '0',
+            'rushing_yards': '0',
+            'rushing_touchdowns': '0',
+            'receptions': '0',
+            'receiving_yards': '0',
+            'receiving_touchdowns': '0',
+            'targets': '0',
+            'yards_per_reception': '0.0',
             # Defensive Stats
-            'tackles': 'tackles',
-            'sacks': 'sacks',
-            'tackles_for_loss': 'tackles_for_loss',
-            'passes_defended': 'passes_defended',
-            'forced_fumbles': 'forced_fumbles',
-            'fumble_recoveries': 'fumble_recoveries',
+            'tackles': '0',
+            'sacks': '0.0',
+            'tackles_for_loss': '0',
+            'passes_defended': '0',
+            'forced_fumbles': '0',
+            'fumble_recoveries': '0',
             # Kicker Stats
-            'fieldgoals': 'fieldgoals',
-            'fieldgoal_attempts': 'fieldgoal_attempts',
-            'extrapoints': 'extrapoints',
-            'extrapoint_attempts': 'extrapoint_attempts',
+            'fieldgoals': '0',
+            'fieldgoal_attempts': '0',
+            'extrapoints': '0',
+            'extrapoint_attempts': '0',
             # Fantasy Points
-            'total_points': 'total_points'
+            'total_points': '0.0'
         }
         
-        # Add all available stats for the player
-        for api_field, xml_field in field_mapping.items():
-            if api_field in player:
-                elem = ET.SubElement(player_elem, xml_field)
-                value = player.get(api_field, 0)
-                try:
-                    if isinstance(value, (int, float)):
-                        elem.text = str(value)
+        # Add all stats with proper type handling
+        for xml_field, default_value in default_stats.items():
+            elem = ET.SubElement(player_elem, xml_field)
+            value = None
+            
+            # Map API fields to XML fields
+            if xml_field == 'tackles':
+                value = player.get('tackles')
+            elif xml_field == 'sacks':
+                value = player.get('sacks')
+            elif xml_field == 'tackles_for_loss':
+                value = player.get('tackles_for_loss')
+            elif xml_field == 'passes_defended':
+                value = player.get('passes_defended')
+            elif xml_field == 'forced_fumbles':
+                value = player.get('forced_fumbles')
+            elif xml_field == 'fumble_recoveries':
+                value = player.get('fumble_recoveries', 0)  # This field might not be in API
+            elif xml_field == 'total_points':
+                value = player.get('total_points')
+            else:
+                value = player.get(xml_field)
+            
+            try:
+                if value is None:
+                    elem.text = default_value
+                elif isinstance(value, (int, float)):
+                    # Handle decimal fields
+                    if xml_field in ['sacks', 'yards_per_reception', 'total_points']:
+                        elem.text = f"{float(value):.1f}"
                     else:
-                        elem.text = str(float(value)) if value else '0'
-                except (ValueError, TypeError):
-                    elem.text = '0'
-                    logger.warning(f"Invalid value for {api_field}: {value}, defaulting to 0")
+                        elem.text = str(int(float(value)))
+                else:
+                    # Try to convert string values
+                    if xml_field in ['sacks', 'yards_per_reception', 'total_points']:
+                        elem.text = f"{float(value):.1f}"
+                    else:
+                        elem.text = str(int(float(value)))
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid value for {xml_field}: {value}, using default")
+                elem.text = default_value
     
     xml_str = ET.tostring(root, encoding='unicode')
     return minidom.parseString(xml_str).toprettyxml(indent="  ")
