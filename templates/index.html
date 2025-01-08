@@ -87,8 +87,8 @@
             try {
                 const response = await fetch(`/api/players/${position}`);
                 const xmlText = await response.text();
+                console.log('Raw XML:', xmlText); // Debug log
                 
-                // Parse XML
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(xmlText, "text/xml");
                 
@@ -99,24 +99,24 @@
                 
                 const playerNodes = xmlDoc.getElementsByTagName('player');
                 const players = Array.from(playerNodes).map(playerNode => {
-                    const playerData = {
-                        id: playerNode.getAttribute('id')
-                    };
+                    const playerData = {};
                     
+                    // Get all child elements
                     Array.from(playerNode.children).forEach(child => {
-                        const value = child.textContent;
-                        // Convert numeric values and ensure proper field names
+                        const tagName = child.tagName.toLowerCase();
+                        const value = child.textContent.trim();
+                        
+                        // Convert numeric values
                         if (!isNaN(value) && value !== '') {
-                            playerData[child.tagName.toLowerCase()] = parseFloat(value);
+                            playerData[tagName] = parseFloat(value);
                         } else {
-                            playerData[child.tagName.toLowerCase()] = value;
+                            playerData[tagName] = value;
                         }
                     });
                     
+                    console.log('Parsed player data:', playerData); // Debug log
                     return playerData;
                 });
-
-                console.log('Parsed players:', players); // Debug log
 
                 return players.filter(player => 
                     player.name.toLowerCase().includes(query.toLowerCase())
@@ -187,31 +187,32 @@
             }
 
             const position = selectedPlayers[0].position;
-            if (!statsConfig[position]) {
+            const config = statsConfig[position];
+            if (!config) {
                 console.error('No stats configuration for position:', position);
                 return;
             }
 
-            // Find max values from actual data for better scaling
-            const { stats, labels } = statsConfig[position];
-            const maxValues = stats.map(stat => {
+            console.log('Selected players:', selectedPlayers);
+            console.log('Position config:', config);
+
+            // Calculate max values from actual data
+            const maxValues = config.stats.map((stat, index) => {
                 const values = selectedPlayers.map(player => parseFloat(player[stat]) || 0);
                 const maxVal = Math.max(...values);
-                // Add 20% padding to max value for better visualization
-                return maxVal * 1.2;
+                return Math.max(maxVal, config.maxValues[index]); // Use whichever is larger
             });
 
-            console.log('Max values for scaling:', maxValues);
-
             const datasets = selectedPlayers.map((player, index) => {
-                const data = stats.map((stat, i) => {
+                console.log('Processing player:', player);
+                const data = config.stats.map((stat, i) => {
                     const value = parseFloat(player[stat]) || 0;
-                    // Calculate percentage relative to max value
+                    // Normalize to percentage
                     const percentage = (value / maxValues[i]) * 100;
                     console.log(`${player.name} - ${stat}: ${value} (${percentage.toFixed(1)}%)`);
                     return percentage;
                 });
-                
+
                 const color = getPlayerColor(index);
                 return {
                     label: player.name,
@@ -234,7 +235,7 @@
             window.myChart = new Chart(ctx, {
                 type: 'radar',
                 data: {
-                    labels: labels,
+                    labels: config.labels,
                     datasets: datasets
                 },
                 options: {
@@ -291,7 +292,7 @@
                                 label: function(context) {
                                     const statIndex = context.dataIndex;
                                     const playerIndex = context.datasetIndex;
-                                    const stat = stats[statIndex];
+                                    const stat = config.stats[statIndex];
                                     const actualValue = selectedPlayers[playerIndex][stat];
                                     const percentage = context.raw;
                                     return `${context.dataset.label}: ${actualValue} (${percentage.toFixed(1)}%)`;
