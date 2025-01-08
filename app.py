@@ -3,6 +3,8 @@ import requests
 import xml.etree.ElementTree as ET
 import json
 import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 app = Flask(__name__)
 
@@ -16,7 +18,7 @@ def convert_to_xml(data):
         player_elem = ET.SubElement(root, "player")
         for key, value in player.items():
             elem = ET.SubElement(player_elem, key)
-            elem.text = str(value)
+            elem.text = str(value) if value is not None else ""
     return ET.tostring(root, encoding='unicode')
 
 @app.route('/')
@@ -27,25 +29,30 @@ def index():
 def get_players_by_position(position):
     try:
         # Connect to your PostgreSQL database directly
-        import psycopg2
         conn = psycopg2.connect(DATABASE_URL)
-        cur = conn.cursor()
+        
+        # Use RealDictCursor to get results as dictionaries
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         
         # Query based on position
-        cur.execute("SELECT * FROM players WHERE position = %s", (position,))
-        columns = [desc[0] for desc in cur.description]
-        results = cur.fetchall()
+        if position == 'all':
+            cur.execute("SELECT * FROM players")
+        else:
+            cur.execute("SELECT * FROM players WHERE position = %s", (position,))
         
-        # Convert to list of dictionaries
-        players = [dict(zip(columns, row)) for row in results]
+        players = cur.fetchall()
+        
+        # Convert players to list of dictionaries
+        players_list = [dict(player) for player in players]
         
         cur.close()
         conn.close()
         
         # Convert to XML for processing
-        xml_data = convert_to_xml(players)
+        xml_data = convert_to_xml(players_list)
         return xml_data, 200, {'Content-Type': 'application/xml'}
     except Exception as e:
+        print(f"Database error: {str(e)}")  # Add logging
         return str(e), 500
 
 if __name__ == '__main__':
