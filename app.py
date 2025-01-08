@@ -90,28 +90,28 @@ def convert_to_xml(data):
         stats_mapping = {
             'QB': {
                 'passing_yards': 'passing_yards',
-                'passing_touchdowns': 'passing_tds',
+                'passing_touchdowns': 'passing_touchdowns',
                 'interceptions': 'interceptions',
                 'rushing_yards': 'rushing_yards',
                 'total_points': 'total_points'
             },
             'RB': {
                 'rushing_yards': 'rushing_yards',
-                'rushing_touchdowns': 'rushing_tds',
+                'rushing_touchdowns': 'rushing_touchdowns',
                 'receptions': 'receptions',
                 'receiving_yards': 'receiving_yards',
                 'total_points': 'total_points'
             },
             'WR': {
                 'receiving_yards': 'receiving_yards',
-                'receiving_touchdowns': 'receiving_tds',
+                'receiving_touchdowns': 'receiving_touchdowns',
                 'receptions': 'receptions',
                 'targets': 'targets',
                 'total_points': 'total_points'
             },
             'TE': {
                 'receiving_yards': 'receiving_yards',
-                'receiving_touchdowns': 'receiving_tds',
+                'receiving_touchdowns': 'receiving_touchdowns',
                 'receptions': 'receptions',
                 'targets': 'targets',
                 'total_points': 'total_points'
