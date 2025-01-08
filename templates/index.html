@@ -88,37 +88,35 @@
                 const response = await fetch(`/api/players/${position}`);
                 const xmlText = await response.text();
                 
-                // Validate XML against XSD schema
+                // Parse XML
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(xmlText, "text/xml");
                 
-                // Check for parsing errors
                 if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
                     console.error("XML parsing error:", xmlDoc.getElementsByTagName("parsererror")[0].textContent);
                     return [];
                 }
                 
-                // Use DOM methods to extract player data
                 const playerNodes = xmlDoc.getElementsByTagName('player');
                 const players = Array.from(playerNodes).map(playerNode => {
                     const playerData = {
                         id: playerNode.getAttribute('id')
                     };
                     
-                    // Get all child elements
                     Array.from(playerNode.children).forEach(child => {
                         const value = child.textContent;
-                        // Convert numeric values
+                        // Convert numeric values and ensure proper field names
                         if (!isNaN(value) && value !== '') {
-                            playerData[child.tagName] = child.tagName.includes('percentage') ? 
-                                parseFloat(value) : parseInt(value);
+                            playerData[child.tagName.toLowerCase()] = parseFloat(value);
                         } else {
-                            playerData[child.tagName] = value;
+                            playerData[child.tagName.toLowerCase()] = value;
                         }
                     });
                     
                     return playerData;
                 });
+
+                console.log('Parsed players:', players); // Debug log
 
                 return players.filter(player => 
                     player.name.toLowerCase().includes(query.toLowerCase())
@@ -196,11 +194,17 @@
 
             const { stats, labels, maxValues } = statsConfig[position];
 
+            console.log('Selected players:', selectedPlayers); // Debug log
+            console.log('Stats config:', stats); // Debug log
+
             const datasets = selectedPlayers.map((player, index) => {
+                console.log('Processing player:', player.name); // Debug log
                 const data = stats.map((stat, i) => {
+                    console.log(`Getting stat ${stat} for player ${player.name}:`, player[stat]); // Debug log
                     const value = parseFloat(player[stat]) || 0;
-                    // Normalize the value between 0 and 100
-                    return (value / maxValues[i]) * 100;
+                    const normalizedValue = (value / maxValues[i]) * 100;
+                    console.log(`Normalized value for ${stat}:`, normalizedValue); // Debug log
+                    return normalizedValue;
                 });
                 
                 const color = getPlayerColor(index);
@@ -278,15 +282,11 @@
                             callbacks: {
                                 label: function(context) {
                                     const value = context.raw;
-                                    const originalValue = selectedPlayers[context.datasetIndex][stats[context.dataIndex]];
+                                    const statName = stats[context.dataIndex];
+                                    const originalValue = selectedPlayers[context.datasetIndex][statName];
                                     return `${context.dataset.label}: ${originalValue} (${value.toFixed(1)}%)`;
                                 }
                             }
-                        }
-                    },
-                    elements: {
-                        line: {
-                            borderWidth: 2
                         }
                     }
                 }
