@@ -10,33 +10,45 @@
 </head>
 <body>
     <div class="container">
-        <h1>NFL Player Statistics Visualization</h1>
-        
-        <div class="position-selector">
-            <button onclick="loadPosition('QB')">Quarterbacks</button>
-            <button onclick="loadPosition('RB')">Running Backs</button>
-            <button onclick="loadPosition('WR')">Wide Receivers</button>
-            <button onclick="loadPosition('TE')">Tight Ends</button>
+        <div class="search-section">
+            <h1>Search Results</h1>
+            <div class="search-box">
+                <input type="text" id="playerSearch" placeholder="Search for a player...">
+                <select id="positionFilter">
+                    <option value="all">All Positions</option>
+                    <option value="QB">QB</option>
+                    <option value="WR">WR</option>
+                    <option value="RB">RB</option>
+                    <option value="TE">TE</option>
+                </select>
+            </div>
         </div>
 
-        <div class="charts-container">
-            <canvas id="statsChart"></canvas>
+        <div class="selected-players">
+            <!-- Selected player cards will be displayed here -->
         </div>
 
-        <div id="player-list"></div>
+        <div class="comparison-section">
+            <div class="player-tags">
+                <!-- Player comparison tags will be displayed here -->
+            </div>
+            <div class="charts-container">
+                <canvas id="statsChart"></canvas>
+            </div>
+        </div>
     </div>
 
     <script>
-        async function loadPosition(position) {
+        let selectedPlayers = [];
+        const maxPlayers = 3;
+
+        async function searchPlayers(query, position) {
             try {
                 const response = await fetch(`/api/players/${position}`);
                 const xmlText = await response.text();
-                
-                // Parse XML
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(xmlText, "text/xml");
                 
-                // Convert XML to JSON for easier processing
                 const players = Array.from(xmlDoc.getElementsByTagName('player')).map(player => {
                     const playerData = {};
                     Array.from(player.children).forEach(child => {
@@ -45,31 +57,79 @@
                     return playerData;
                 });
 
-                // Update chart with first player
-                if (players.length > 0) {
-                    updateChart(players[0], position);
-                }
-
-                // Update player list
-                updatePlayerList(players, position);
+                return players.filter(player => 
+                    player.name.toLowerCase().includes(query.toLowerCase())
+                );
             } catch (error) {
-                console.error('Error loading data:', error);
+                console.error('Error searching players:', error);
+                return [];
             }
         }
 
-        function updateChart(playerData, position) {
+        function createPlayerTag(player) {
+            const color = getPlayerColor(selectedPlayers.length);
+            return `
+                <div class="player-tag" style="border-color: ${color}">
+                    ${player.name}
+                    <span class="position">${player.position} - ${player.team}</span>
+                    <button onclick="removePlayer('${player.name}')" class="remove-btn">×</button>
+                </div>
+            `;
+        }
+
+        function getPlayerColor(index) {
+            const colors = ['#ff4444', '#00c3ff', '#44ff44'];
+            return colors[index % colors.length];
+        }
+
+        function addPlayer(player) {
+            if (selectedPlayers.length >= maxPlayers) {
+                alert('You can only compare up to 3 players');
+                return;
+            }
+            if (selectedPlayers.some(p => p.name === player.name)) {
+                return;
+            }
+            selectedPlayers.push(player);
+            updatePlayerTags();
+            updateChart();
+        }
+
+        function removePlayer(playerName) {
+            selectedPlayers = selectedPlayers.filter(p => p.name !== playerName);
+            updatePlayerTags();
+            updateChart();
+        }
+
+        function updatePlayerTags() {
+            const tagsContainer = document.querySelector('.player-tags');
+            tagsContainer.innerHTML = selectedPlayers.map((player, index) => 
+                createPlayerTag(player)
+            ).join('');
+        }
+
+        function updateChart() {
             const ctx = document.getElementById('statsChart');
             
-            // Define stats to show based on position
-            const statsConfig = {
-                'QB': ['passing_yards', 'passing_tds', 'completion_percentage', 'interceptions'],
-                'RB': ['rushing_yards', 'rushing_tds', 'receptions', 'fumbles'],
-                'WR': ['receiving_yards', 'receiving_tds', 'receptions', 'targets'],
-                'TE': ['receiving_yards', 'receiving_tds', 'receptions', 'targets']
-            };
+            if (selectedPlayers.length === 0) {
+                if (window.myChart) {
+                    window.myChart.destroy();
+                }
+                return;
+            }
 
-            const stats = statsConfig[position];
-            const data = stats.map(stat => playerData[stat]);
+            const stats = ['receptions', 'total_points', 'targets', 'receiving_yards', 'receiving_tds'];
+            const datasets = selectedPlayers.map((player, index) => ({
+                label: player.name,
+                data: stats.map(stat => parseFloat(player[stat]) || 0),
+                borderColor: getPlayerColor(index),
+                backgroundColor: `${getPlayerColor(index)}33`,
+                borderWidth: 2,
+                pointBackgroundColor: getPlayerColor(index),
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: getPlayerColor(index)
+            }));
 
             if (window.myChart) {
                 window.myChart.destroy();
@@ -78,41 +138,70 @@
             window.myChart = new Chart(ctx, {
                 type: 'radar',
                 data: {
-                    labels: stats,
-                    datasets: [{
-                        label: playerData.name,
-                        data: data,
-                        fill: true,
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        borderColor: 'rgb(54, 162, 235)',
-                        pointBackgroundColor: 'rgb(54, 162, 235)',
-                        pointBorderColor: '#fff',
-                        pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: 'rgb(54, 162, 235)'
-                    }]
+                    labels: ['Receptions', 'Total Points', 'Targets', 'Receiving Yards', 'Receiving TDs'],
+                    datasets: datasets
                 },
                 options: {
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#333'
+                            },
+                            angleLines: {
+                                color: '#333'
+                            },
+                            pointLabels: {
+                                color: '#fff'
+                            },
+                            ticks: {
+                                color: '#666',
+                                backdropColor: 'transparent'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#fff'
+                            }
+                        }
+                    },
                     elements: {
                         line: {
-                            borderWidth: 3
+                            borderWidth: 2
                         }
                     }
                 }
             });
         }
 
-        function updatePlayerList(players, position) {
-            const playerList = document.getElementById('player-list');
-            playerList.innerHTML = players.map(player => 
-                `<div class="player-card" onclick="updateChart(${JSON.stringify(player)}, '${position}')">
-                    <h3>${player.name}</h3>
-                    <p>Team: ${player.team}</p>
-                </div>`
-            ).join('');
+        // Search functionality
+        const searchInput = document.getElementById('playerSearch');
+        const positionFilter = document.getElementById('positionFilter');
+
+        async function handleSearch() {
+            const query = searchInput.value;
+            const position = positionFilter.value;
+            if (query.length < 2) return;
+
+            const players = await searchPlayers(query, position === 'all' ? 'WR' : position);
+            displaySearchResults(players);
         }
 
-        // Load QBs by default
-        loadPosition('QB');
+        function displaySearchResults(players) {
+            const resultsContainer = document.querySelector('.selected-players');
+            resultsContainer.innerHTML = players.map(player => `
+                <div class="player-card" onclick="addPlayer(${JSON.stringify(player)})">
+                    <h3>${player.name}</h3>
+                    <p>${player.position} - ${player.team}</p>
+                    <button class="add-btn">ADD TO COMPARE</button>
+                </div>
+            `).join('');
+        }
+
+        searchInput.addEventListener('input', handleSearch);
+        positionFilter.addEventListener('change', handleSearch);
     </script>
 </body>
 </html> 
