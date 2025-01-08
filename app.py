@@ -93,49 +93,49 @@ def convert_to_xml(data):
                 'passing_touchdowns': 'passing_tds',
                 'interceptions': 'interceptions',
                 'rushing_yards': 'rushing_yards',
-                'completion_percentage': 'completion_percentage'
+                'total_points': 'total_points'
             },
             'RB': {
                 'rushing_yards': 'rushing_yards',
                 'rushing_touchdowns': 'rushing_tds',
                 'receptions': 'receptions',
                 'receiving_yards': 'receiving_yards',
-                'fumbles': 'fumbles'
+                'total_points': 'total_points'
             },
             'WR': {
                 'receiving_yards': 'receiving_yards',
                 'receiving_touchdowns': 'receiving_tds',
                 'receptions': 'receptions',
                 'targets': 'targets',
-                'yards_per_reception': 'yards_per_reception'
+                'total_points': 'total_points'
             },
             'TE': {
                 'receiving_yards': 'receiving_yards',
                 'receiving_touchdowns': 'receiving_tds',
                 'receptions': 'receptions',
                 'targets': 'targets',
-                'yards_per_reception': 'yards_per_reception'
+                'total_points': 'total_points'
             },
             'LB': {
                 'tackles': 'tackles',
                 'sacks': 'sacks',
                 'interceptions': 'interceptions',
                 'tackles_for_loss': 'tackles_for_loss',
-                'forced_fumbles': 'forced_fumbles'
+                'total_points': 'total_points'
             },
             'DB': {
                 'tackles': 'tackles',
                 'interceptions': 'interceptions',
                 'passes_defended': 'passes_defended',
                 'forced_fumbles': 'forced_fumbles',
-                'fumble_recoveries': 'fumble_recoveries'
+                'total_points': 'total_points'
             },
             'DL': {
                 'tackles': 'tackles',
                 'sacks': 'sacks',
                 'tackles_for_loss': 'tackles_for_loss',
                 'forced_fumbles': 'forced_fumbles',
-                'fumble_recoveries': 'fumble_recoveries'
+                'total_points': 'total_points'
             }
         }
         
