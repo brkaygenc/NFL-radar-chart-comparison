@@ -36,7 +36,7 @@ DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 app.config['DEBUG'] = DEBUG
 
 # Updated API URL to use the new API endpoint with fallback
-API_BASE_URL = os.getenv('NFL_API_URL', 'https://nfl-stats-api-2024-63a0f473cb46.herokuapp.com')
+API_BASE_URL = os.getenv('NFL_API_URL', 'https://nfl-stats-bd003f70104a.herokuapp.com')
 
 # Updated valid positions to include all available positions
 VALID_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DB', 'DL']
