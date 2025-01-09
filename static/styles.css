@@ -81,13 +81,13 @@ select {
 }
 
 select:hover, select:focus {
-    border-color: #E94560;
+    border-color: #09d814;
     background-color: rgba(255, 255, 255, 0.15);
 }
 
 .search-btn {
     padding: 10px 20px;
-    background-color: #E94560;
+    background-color: #44ff44;
     color: #F9F9F9;
     border: none;
     border-radius: 8px;
@@ -101,9 +101,9 @@ select:hover, select:focus {
 }
 
 .search-btn:hover {
-    background-color: #d63d56;
+    background-color: #33cc33;
     transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3);
+    box-shadow: 0 4px 15px rgba(68, 255, 68, 0.3);
 }
 
 .selected-players {
