@@ -97,7 +97,7 @@
                     return [];
                 }
 
-                const apiUrl = `/api/players/${position}`;
+                const apiUrl = `/api/search?query=${encodeURIComponent(query)}&position=${position}`;
                 console.log(`Making API request to: ${apiUrl}`);
                 console.log(`Search query: "${query}", Position: "${position}"`);
                 

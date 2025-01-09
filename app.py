@@ -43,7 +43,11 @@ VALID_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DB', 'DL']
 
 def make_api_request(endpoint):
     """Make a request to the NFL stats API"""
-    url = f"{API_BASE_URL}{endpoint}"
+    # Extract position from endpoint
+    position = endpoint.split('/')[-1]
+    
+    # Construct the search URL
+    url = f"{API_BASE_URL}/api/search?position={position}"
     logger.info(f"Making API request to: {url}")
     
     headers = {
@@ -242,6 +246,48 @@ def get_team_players(team_code):
     if players is None:
         return jsonify({'error': 'Failed to fetch team players'}), 503
     return jsonify(players)
+
+@app.route('/api/search')
+def search_players():
+    try:
+        query = request.args.get('query', '')
+        position = request.args.get('position', '').upper()
+        
+        if position not in VALID_POSITIONS:
+            logger.warning(f"Invalid position requested: {position}")
+            return jsonify({'error': 'Invalid position', 'valid_positions': VALID_POSITIONS}), 400
+
+        logger.info(f"Searching players with query: {query}, position: {position}")
+        players = make_api_request(f'/api/players/{position}')
+        
+        if players is None:
+            logger.error("Failed to fetch player data from API")
+            return jsonify({'error': 'Failed to fetch player data'}), 503
+
+        # Filter players by name
+        if query:
+            players = [p for p in players if query.lower() in p.get('name', '').lower()]
+
+        logger.info(f"Converting {len(players)} players to XML")
+        try:
+            xml_data = convert_to_xml(players)
+            logger.info("XML conversion successful")
+            logger.debug(f"Generated XML: {xml_data[:500]}...")  # Log first 500 chars
+        except Exception as xml_error:
+            logger.error(f"Failed to convert data to XML: {str(xml_error)}")
+            return jsonify({'error': 'Failed to convert data to XML'}), 500
+        
+        logger.info("Validating XML against schema")
+        if not validate_xml(xml_data, 'static/player_stats.xsd'):
+            logger.error("Generated XML failed validation")
+            return jsonify({'error': 'Generated XML failed validation'}), 500
+
+        logger.info("Successfully generated and validated XML")
+        return xml_data, 200, {'Content-Type': 'application/xml; charset=utf-8'}
+
+    except Exception as e:
+        logger.exception(f"Error processing search request")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
