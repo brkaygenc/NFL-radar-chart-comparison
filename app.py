@@ -38,8 +38,8 @@ def add_security_headers(response):
 DEBUG = True  # Enable debug mode for more detailed error messages
 app.config['DEBUG'] = DEBUG
 
-# Updated API URL to use the new API endpoint with fallback
-API_BASE_URL = os.getenv('NFL_API_URL', 'https://nfl-stats-bd003f70104a.herokuapp.com')
+# Updated API URL to use the REST API endpoint instead of Streamlit frontend
+API_BASE_URL = os.getenv('NFL_API_URL', 'https://nfl-stats-api-131dc9db6a94.herokuapp.com')
 logger.info(f"Using API base URL: {API_BASE_URL}")
 
 # Updated valid positions to include all available positions
