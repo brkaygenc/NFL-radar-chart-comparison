@@ -200,61 +200,109 @@ def serve_static(filename):
 
 @app.route('/api/search')
 def search_players():
+    """Search for players by name and optionally position"""
+    name = request.args.get('name', '').strip()
+    position = request.args.get('position', '').strip().upper()
+    
+    if not name:
+        return jsonify({'error': 'Name parameter is required'}), 400
+        
+    if position and position not in VALID_POSITIONS:
+        return jsonify({'error': f'Invalid position. Valid positions are: {", ".join(VALID_POSITIONS)}'}), 400
+    
     try:
-        query = request.args.get('query', '')
-        position = request.args.get('position', '').upper()
+        players = []
+        # If position is specified, search only in that position
+        if position:
+            response = make_api_request(f'/api/players/{position}')
+            if response:
+                players = [p for p in response if name.lower() in p.get('name', '').lower()]
+        else:
+            # Search across all positions
+            for pos in VALID_POSITIONS:
+                response = make_api_request(f'/api/players/{pos}')
+                if response:
+                    players.extend([p for p in response if name.lower() in p.get('name', '').lower()])
         
-        if position not in VALID_POSITIONS:
-            logger.warning(f"Invalid position requested: {position}")
-            return jsonify({'error': 'Invalid position', 'valid_positions': VALID_POSITIONS}), 400
-
-        logger.info(f"Searching players with query: {query}, position: {position}")
-        players = make_api_request(f'/api/players/{position}')
-        
-        if players is None:
-            logger.error("Failed to fetch player data from API")
-            return jsonify({'error': 'Failed to fetch player data'}), 503
-
-        # Filter players by name
-        if query:
-            players = [p for p in players if query.lower() in p.get('name', '').lower()]
-
-        logger.info(f"Converting {len(players)} players to XML")
-        try:
-            xml_data = convert_to_xml(players)
-            logger.info("XML conversion successful")
-            logger.debug(f"Generated XML: {xml_data[:500]}...")  # Log first 500 chars
-        except Exception as xml_error:
-            logger.error(f"Failed to convert data to XML: {str(xml_error)}")
-            return jsonify({'error': 'Failed to convert data to XML'}), 500
-        
-        logger.info("Validating XML against schema")
-        if not validate_xml(xml_data, 'static/player_stats.xsd'):
-            logger.error("Generated XML failed validation")
-            return jsonify({'error': 'Generated XML failed validation'}), 500
-
-        logger.info("Successfully generated and validated XML")
-        return xml_data, 200, {'Content-Type': 'application/xml; charset=utf-8'}
-
+        return jsonify(players)
     except Exception as e:
-        logger.exception(f"Error processing search request")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error in search_players: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/players/<position>')
+def get_players(position):
+    """Get all players for a specific position"""
+    position = position.upper()
+    if position not in VALID_POSITIONS:
+        return jsonify({'error': f'Invalid position. Valid positions are: {", ".join(VALID_POSITIONS)}'}), 400
+    
+    try:
+        players = make_api_request(f'/api/players/{position}')
+        if players is None:
+            return jsonify({'error': 'Failed to fetch players data'}), 500
+        return jsonify(players)
+    except Exception as e:
+        logger.error(f"Error in get_players: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/teams')
 def get_teams():
     """Get all teams with their codes and divisions"""
-    teams = make_api_request('/api/teams')
-    if teams is None:
-        return jsonify({'error': 'Failed to fetch team data'}), 503
-    return jsonify(teams)
+    try:
+        teams = [
+            {"code": "ARI", "name": "Arizona Cardinals", "division": "NFC West"},
+            {"code": "ATL", "name": "Atlanta Falcons", "division": "NFC South"},
+            {"code": "BAL", "name": "Baltimore Ravens", "division": "AFC North"},
+            {"code": "BUF", "name": "Buffalo Bills", "division": "AFC East"},
+            {"code": "CAR", "name": "Carolina Panthers", "division": "NFC South"},
+            {"code": "CHI", "name": "Chicago Bears", "division": "NFC North"},
+            {"code": "CIN", "name": "Cincinnati Bengals", "division": "AFC North"},
+            {"code": "CLE", "name": "Cleveland Browns", "division": "AFC North"},
+            {"code": "DAL", "name": "Dallas Cowboys", "division": "NFC East"},
+            {"code": "DEN", "name": "Denver Broncos", "division": "AFC West"},
+            {"code": "DET", "name": "Detroit Lions", "division": "NFC North"},
+            {"code": "GB", "name": "Green Bay Packers", "division": "NFC North"},
+            {"code": "HOU", "name": "Houston Texans", "division": "AFC South"},
+            {"code": "IND", "name": "Indianapolis Colts", "division": "AFC South"},
+            {"code": "JAX", "name": "Jacksonville Jaguars", "division": "AFC South"},
+            {"code": "KC", "name": "Kansas City Chiefs", "division": "AFC West"},
+            {"code": "LV", "name": "Las Vegas Raiders", "division": "AFC West"},
+            {"code": "LAC", "name": "Los Angeles Chargers", "division": "AFC West"},
+            {"code": "LAR", "name": "Los Angeles Rams", "division": "NFC West"},
+            {"code": "MIA", "name": "Miami Dolphins", "division": "AFC East"},
+            {"code": "MIN", "name": "Minnesota Vikings", "division": "NFC North"},
+            {"code": "NE", "name": "New England Patriots", "division": "AFC East"},
+            {"code": "NO", "name": "New Orleans Saints", "division": "NFC South"},
+            {"code": "NYG", "name": "New York Giants", "division": "NFC East"},
+            {"code": "NYJ", "name": "New York Jets", "division": "AFC East"},
+            {"code": "PHI", "name": "Philadelphia Eagles", "division": "NFC East"},
+            {"code": "PIT", "name": "Pittsburgh Steelers", "division": "AFC North"},
+            {"code": "SF", "name": "San Francisco 49ers", "division": "NFC West"},
+            {"code": "SEA", "name": "Seattle Seahawks", "division": "NFC West"},
+            {"code": "TB", "name": "Tampa Bay Buccaneers", "division": "NFC South"},
+            {"code": "TEN", "name": "Tennessee Titans", "division": "AFC South"},
+            {"code": "WAS", "name": "Washington Commanders", "division": "NFC East"}
+        ]
+        return jsonify(teams)
+    except Exception as e:
+        logger.error(f"Error in get_teams: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
 
-@app.route('/api/team/<team_code>/players')
+@app.route('/api/teams/<team_code>/players')
 def get_team_players(team_code):
     """Get all players for a specific team"""
-    players = make_api_request(f'/api/team/{team_code}/players')
-    if players is None:
-        return jsonify({'error': 'Failed to fetch team players'}), 503
-    return jsonify(players)
+    team_code = team_code.upper()
+    try:
+        all_players = []
+        for position in VALID_POSITIONS:
+            players = make_api_request(f'/api/players/{position}')
+            if players:
+                team_players = [p for p in players if p.get('team', '').upper() == team_code]
+                all_players.extend(team_players)
+        return jsonify(all_players)
+    except Exception as e:
+        logger.error(f"Error in get_team_players: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
