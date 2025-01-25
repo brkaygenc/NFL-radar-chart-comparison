@@ -203,121 +203,66 @@
         }
 
         function updateChart() {
-            const ctx = document.getElementById('statsChart');
-            
-            if (selectedPlayers.length === 0) {
-                if (window.myChart) {
-                    window.myChart.destroy();
-                }
-                return;
-            }
+            const chartCanvas = document.getElementById('statsChart');
+            if (!chartCanvas) return;
 
-            const position = selectedPlayers[0].position;
+            const firstPlayer = selectedPlayers[0];
+            if (!firstPlayer) return;
+
+            const position = firstPlayer.position;
             const config = statsConfig[position];
-            if (!config) {
-                console.error('No stats configuration for position:', position);
-                return;
-            }
+            if (!config) return;
 
-            const datasets = selectedPlayers.map((player, index) => ({
-                label: player.name,
-                data: config.stats.map(stat => {
-                    const value = parseFloat(player[stat]) || 0;
-                    const maxValue = config.maxValues[config.stats.indexOf(stat)];
-                    // If the stat should be inverted (like interceptions), invert the percentage
-                    if (config.invertedStats && config.invertedStats.includes(stat)) {
-                        return ((maxValue - value) / maxValue) * 100;
-                    }
-                    return (value / maxValue) * 100;
-                }),
-                borderColor: getPlayerColor(index),
-                backgroundColor: getPlayerColor(index) + '20',
-                borderWidth: 2,
-                pointBackgroundColor: getPlayerColor(index),
-                pointBorderColor: '#fff',
-                pointHoverBackgroundColor: '#fff',
-                pointHoverBorderColor: getPlayerColor(index)
-            }));
+            const data = {
+                labels: config.labels,
+                datasets: selectedPlayers.map((player, index) => {
+                    const color = getPlayerColor(index);
+                    const stats = player.stats || {}; // Handle nested stats
+                    
+                    // Map the stats based on position configuration
+                    const values = config.stats.map(stat => {
+                        const value = stats[stat] || 0;
+                        // For inverted stats (like interceptions), invert the normalized value
+                        const maxValue = config.maxValues[config.stats.indexOf(stat)];
+                        const normalizedValue = (value / maxValue) * 100;
+                        return config.invertedStats && config.invertedStats.includes(stat) 
+                            ? 100 - normalizedValue 
+                            : normalizedValue;
+                    });
 
-            if (window.myChart) {
-                window.myChart.destroy();
-            }
+                    return {
+                        label: player.name,
+                        data: values,
+                        backgroundColor: `rgba(${color}, 0.2)`,
+                        borderColor: `rgba(${color}, 1)`,
+                        pointBackgroundColor: `rgba(${color}, 1)`,
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: `rgba(${color}, 1)`
+                    };
+                })
+            };
 
-            window.myChart = new Chart(ctx, {
-                type: 'radar',
-                data: {
-                    labels: config.labels,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        r: {
-                            beginAtZero: true,
-                            min: 0,
-                            max: 100,
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
-                            angleLines: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
-                            pointLabels: {
-                                color: '#fff',
-                                font: {
-                                    size: 14,
-                                    weight: 'bold'
-                                }
-                            },
-                            ticks: {
-                                color: 'rgba(255, 255, 255, 0.5)',
-                                backdropColor: 'transparent',
-                                stepSize: 20,
-                                font: {
-                                    size: 12
-                                },
-                                callback: function(value) {
-                                    return value + '%';
-                                }
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                color: '#fff',
-                                font: {
-                                    size: 14,
-                                    weight: 'bold'
-                                },
-                                padding: 20
-                            }
+            const options = {
+                scales: {
+                    r: {
+                        angleLines: {
+                            display: true
                         },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            titleColor: '#fff',
-                            bodyColor: '#fff',
-                            callbacks: {
-                                label: function(context) {
-                                    const statIndex = context.dataIndex;
-                                    const playerIndex = context.datasetIndex;
-                                    const stat = config.stats[statIndex];
-                                    const actualValue = selectedPlayers[playerIndex][stat];
-                                    const percentage = context.raw;
-                                    
-                                    // For inverted stats, explain that lower is better
-                                    if (config.invertedStats && config.invertedStats.includes(stat)) {
-                                        return `${context.dataset.label}: ${actualValue} (${percentage.toFixed(1)}% - lower is better)`;
-                                    } else {
-                                        return `${context.dataset.label}: ${actualValue} (${percentage.toFixed(1)}%)`;
-                                    }
-                                }
-                            }
-                        }
+                        suggestedMin: 0,
+                        suggestedMax: 100
                     }
                 }
+            };
+
+            if (window.statsChart) {
+                window.statsChart.destroy();
+            }
+
+            window.statsChart = new Chart(chartCanvas, {
+                type: 'radar',
+                data: data,
+                options: options
             });
         }
 

@@ -54,13 +54,23 @@ def make_api_request(endpoint):
         
         response = requests.get(url, headers=headers, timeout=10)
         logger.info(f"Response status: {response.status_code}")
-        logger.info(f"Response headers: {dict(response.headers)}")
         
+        if response.status_code == 404:
+            logger.warning(f"Resource not found: {url}")
+            return None
+        elif response.status_code == 400:
+            logger.warning(f"Invalid request: {url}")
+            return None
+            
         response.raise_for_status()
         data = response.json()
-        logger.info(f"Received data: {data[:100] if isinstance(data, str) else str(data)[:100]}...")
+        
+        # Log rate limit info if available
+        if 'X-RateLimit-Remaining' in response.headers:
+            logger.info(f"Rate limit remaining: {response.headers['X-RateLimit-Remaining']}")
+            
         return data
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         logger.error(f"API request failed: {str(e)}")
         return None
 
@@ -212,10 +222,9 @@ def search_players():
         players = make_api_request(endpoint)
         
         if players is None:
-            logger.error("Failed to fetch players from API")
             return jsonify({'error': 'Failed to fetch player data'}), 500
             
-        logger.info(f"Found {len(players) if isinstance(players, list) else 'unknown'} players")
+        logger.info(f"Found {len(players)} players")
         return jsonify(players)
     except Exception as e:
         logger.error(f"Error in search_players: {str(e)}")
@@ -241,40 +250,9 @@ def get_players(position):
 def get_teams():
     """Get all teams with their codes and divisions"""
     try:
-        teams = [
-            {"code": "ARI", "name": "Arizona Cardinals", "division": "NFC West"},
-            {"code": "ATL", "name": "Atlanta Falcons", "division": "NFC South"},
-            {"code": "BAL", "name": "Baltimore Ravens", "division": "AFC North"},
-            {"code": "BUF", "name": "Buffalo Bills", "division": "AFC East"},
-            {"code": "CAR", "name": "Carolina Panthers", "division": "NFC South"},
-            {"code": "CHI", "name": "Chicago Bears", "division": "NFC North"},
-            {"code": "CIN", "name": "Cincinnati Bengals", "division": "AFC North"},
-            {"code": "CLE", "name": "Cleveland Browns", "division": "AFC North"},
-            {"code": "DAL", "name": "Dallas Cowboys", "division": "NFC East"},
-            {"code": "DEN", "name": "Denver Broncos", "division": "AFC West"},
-            {"code": "DET", "name": "Detroit Lions", "division": "NFC North"},
-            {"code": "GB", "name": "Green Bay Packers", "division": "NFC North"},
-            {"code": "HOU", "name": "Houston Texans", "division": "AFC South"},
-            {"code": "IND", "name": "Indianapolis Colts", "division": "AFC South"},
-            {"code": "JAX", "name": "Jacksonville Jaguars", "division": "AFC South"},
-            {"code": "KC", "name": "Kansas City Chiefs", "division": "AFC West"},
-            {"code": "LV", "name": "Las Vegas Raiders", "division": "AFC West"},
-            {"code": "LAC", "name": "Los Angeles Chargers", "division": "AFC West"},
-            {"code": "LAR", "name": "Los Angeles Rams", "division": "NFC West"},
-            {"code": "MIA", "name": "Miami Dolphins", "division": "AFC East"},
-            {"code": "MIN", "name": "Minnesota Vikings", "division": "NFC North"},
-            {"code": "NE", "name": "New England Patriots", "division": "AFC East"},
-            {"code": "NO", "name": "New Orleans Saints", "division": "NFC South"},
-            {"code": "NYG", "name": "New York Giants", "division": "NFC East"},
-            {"code": "NYJ", "name": "New York Jets", "division": "AFC East"},
-            {"code": "PHI", "name": "Philadelphia Eagles", "division": "NFC East"},
-            {"code": "PIT", "name": "Pittsburgh Steelers", "division": "AFC North"},
-            {"code": "SF", "name": "San Francisco 49ers", "division": "NFC West"},
-            {"code": "SEA", "name": "Seattle Seahawks", "division": "NFC West"},
-            {"code": "TB", "name": "Tampa Bay Buccaneers", "division": "NFC South"},
-            {"code": "TEN", "name": "Tennessee Titans", "division": "AFC South"},
-            {"code": "WAS", "name": "Washington Commanders", "division": "NFC East"}
-        ]
+        teams = make_api_request('/api/teams')
+        if teams is None:
+            return jsonify({'error': 'Failed to fetch teams data'}), 500
         return jsonify(teams)
     except Exception as e:
         logger.error(f"Error in get_teams: {str(e)}")
@@ -285,13 +263,10 @@ def get_team_players(team_code):
     """Get all players for a specific team"""
     team_code = team_code.upper()
     try:
-        all_players = []
-        for position in VALID_POSITIONS:
-            players = make_api_request(f'/api/players/{position}')
-            if players:
-                team_players = [p for p in players if p.get('team', '').upper() == team_code]
-                all_players.extend(team_players)
-        return jsonify(all_players)
+        players = make_api_request(f'/api/teams/{team_code}/players')
+        if players is None:
+            return jsonify({'error': 'Failed to fetch team players data'}), 500
+        return jsonify(players)
     except Exception as e:
         logger.error(f"Error in get_team_players: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
