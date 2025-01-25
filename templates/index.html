@@ -97,13 +97,12 @@
                     return [];
                 }
 
-                const apiUrl = `/api/search?query=${encodeURIComponent(query)}&position=${position}`;
+                const apiUrl = `/api/search?name=${encodeURIComponent(query)}&position=${position}`;
                 console.log(`Making API request to: ${apiUrl}`);
                 console.log(`Search query: "${query}", Position: "${position}"`);
                 
                 const response = await fetch(apiUrl);
                 console.log('Response status:', response.status);
-                console.log('Response headers:', Object.fromEntries(response.headers));
                 
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -112,51 +111,25 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
-                const xmlText = await response.text();
-                console.log('Raw XML response:', xmlText);
-                
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-                
-                if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
-                    const error = xmlDoc.getElementsByTagName("parsererror")[0].textContent;
-                    console.error("XML parsing error:", error);
-                    console.error("Problematic XML:", xmlText);
-                    throw new Error(`XML parsing error: ${error}`);
-                }
-                
-                const playerNodes = xmlDoc.getElementsByTagName('player');
-                console.log(`Found ${playerNodes.length} players in XML`);
-                
-                const players = Array.from(playerNodes).map(playerNode => {
-                    const playerData = {
-                        id: playerNode.getAttribute('id') || ''
-                    };
-                    
-                    Array.from(playerNode.children).forEach(child => {
-                        const tagName = child.tagName.toLowerCase();
-                        const value = child.textContent.trim();
-                        playerData[tagName] = value;
-                        console.log(`Player ${playerData.id} - ${tagName}: ${value}`);
-                    });
-                    
-                    return playerData;
-                });
+                const players = await response.json();
+                console.log(`Found ${players.length} players:`, players);
 
-                // More precise filtering with name check
-                const filteredPlayers = players.filter(player => {
-                    if (!player.name) {
-                        console.log('Player missing name:', player);
-                        return false;
-                    }
-                    const match = player.name.toLowerCase().includes(query.toLowerCase());
-                    if (match) {
-                        console.log('Found matching player:', player.name);
-                    }
-                    return match;
-                }).slice(0, 5); // Limit to top 5 matches
+                // Filter and limit to top 5 matches
+                const filteredPlayers = players
+                    .filter(player => {
+                        if (!player.name) {
+                            console.log('Player missing name:', player);
+                            return false;
+                        }
+                        const match = player.name.toLowerCase().includes(query.toLowerCase());
+                        if (match) {
+                            console.log('Found matching player:', player.name);
+                        }
+                        return match;
+                    })
+                    .slice(0, 5);
 
-                console.log(`Found ${filteredPlayers.length} matching players:`, filteredPlayers);
+                console.log(`Returning ${filteredPlayers.length} matching players:`, filteredPlayers);
                 return filteredPlayers;
             } catch (error) {
                 console.error('Error searching players:', error);
@@ -399,4 +372,4 @@
         positionFilter.addEventListener('change', handleSearch);
     </script>
 </body>
-</html> 
+</html>
