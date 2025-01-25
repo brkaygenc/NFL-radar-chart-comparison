@@ -15,8 +15,11 @@ import numpy as np
 # Load environment variables
 load_dotenv()
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
+# Set up logging with more detailed format
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -32,11 +35,12 @@ def add_security_headers(response):
     return response
 
 # Configuration
-DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+DEBUG = True  # Enable debug mode for more detailed error messages
 app.config['DEBUG'] = DEBUG
 
 # Updated API URL to use the new API endpoint with fallback
 API_BASE_URL = os.getenv('NFL_API_URL', 'https://nfl-stats-bd003f70104a.herokuapp.com')
+logger.info(f"Using API base URL: {API_BASE_URL}")
 
 # Updated valid positions to include all available positions
 VALID_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DB', 'DL']
@@ -51,9 +55,17 @@ def make_api_request(endpoint):
             'Accept': 'application/json',
             'User-Agent': 'NFL-Stats-Visualizer/1.0'
         }
+        logger.debug(f"Request headers: {headers}")
         
         response = requests.get(url, headers=headers, timeout=10)
         logger.info(f"Response status: {response.status_code}")
+        logger.debug(f"Response headers: {dict(response.headers)}")
+        
+        try:
+            response_text = response.text
+            logger.debug(f"Raw response: {response_text[:500]}...")  # Log first 500 chars of response
+        except Exception as e:
+            logger.error(f"Error reading response text: {str(e)}")
         
         if response.status_code == 404:
             logger.warning(f"Resource not found: {url}")
@@ -61,17 +73,27 @@ def make_api_request(endpoint):
         elif response.status_code == 400:
             logger.warning(f"Invalid request: {url}")
             return None
+        elif response.status_code == 500:
+            logger.error(f"Server error from API: {url}")
+            logger.error(f"Response content: {response_text if 'response_text' in locals() else 'No response text'}")
+            return None
             
         response.raise_for_status()
-        data = response.json()
         
-        # Log rate limit info if available
-        if 'X-RateLimit-Remaining' in response.headers:
-            logger.info(f"Rate limit remaining: {response.headers['X-RateLimit-Remaining']}")
+        try:
+            data = response.json()
+            logger.debug(f"Parsed JSON response: {str(data)[:500]}...")  # Log first 500 chars of parsed data
+            return data
+        except ValueError as e:
+            logger.error(f"Error parsing JSON response: {str(e)}")
+            logger.error(f"Invalid JSON response: {response_text if 'response_text' in locals() else 'No response text'}")
+            return None
             
-        return data
     except requests.exceptions.RequestException as e:
         logger.error(f"API request failed: {str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error in make_api_request: {str(e)}")
         return None
 
 def validate_xml(xml_string, xsd_path):
@@ -202,33 +224,40 @@ def serve_static(filename):
 @app.route('/api/search')
 def search_players():
     """Search for players by name and optionally position"""
-    name = request.args.get('name', '').strip()
-    position = request.args.get('position', '').strip().upper()
-    
-    if not name:
-        return jsonify({'error': 'Name parameter is required'}), 400
-        
-    if position and position not in VALID_POSITIONS:
-        return jsonify({'error': f'Invalid position. Valid positions are: {", ".join(VALID_POSITIONS)}'}), 400
-    
     try:
+        name = request.args.get('name', '').strip()
+        position = request.args.get('position', '').strip().upper()
+        
+        logger.info(f"Search request - name: {name}, position: {position}")
+        
+        if not name:
+            logger.warning("Search request missing name parameter")
+            return jsonify({'error': 'Name parameter is required'}), 400
+            
+        if position and position not in VALID_POSITIONS:
+            logger.warning(f"Invalid position requested: {position}")
+            return jsonify({'error': f'Invalid position. Valid positions are: {", ".join(VALID_POSITIONS)}'}), 400
+        
         # Construct search endpoint
         search_params = {'name': name}
         if position:
             search_params['position'] = position
         
-        # Make API request
         endpoint = f"/api/search?{'&'.join(f'{k}={v}' for k, v in search_params.items())}"
+        logger.info(f"Constructed search endpoint: {endpoint}")
+        
         players = make_api_request(endpoint)
         
         if players is None:
+            logger.error("Failed to fetch players from API")
             return jsonify({'error': 'Failed to fetch player data'}), 500
             
-        logger.info(f"Found {len(players)} players")
+        logger.info(f"Found {len(players) if isinstance(players, list) else 'unknown'} players")
         return jsonify(players)
+        
     except Exception as e:
-        logger.error(f"Error in search_players: {str(e)}")
-        return jsonify({'error': 'Internal server error'}), 500
+        logger.exception(f"Unexpected error in search_players: {str(e)}")
+        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
 
 @app.route('/api/players/<position>')
 def get_players(position):
