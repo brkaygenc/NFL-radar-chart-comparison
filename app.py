@@ -38,8 +38,10 @@ def add_security_headers(response):
 DEBUG = True  # Enable debug mode for more detailed error messages
 app.config['DEBUG'] = DEBUG
 
-# Updated API URL to use the REST API endpoint instead of Streamlit frontend
-API_BASE_URL = os.getenv('NFL_API_URL', 'https://nfl-stats-api-131dc9db6a94.herokuapp.com')
+# URLs for frontend and API
+FRONTEND_URL = 'https://nfl-stats-bd003f70104a.herokuapp.com'
+API_BASE_URL = os.getenv('NFL_API_URL', FRONTEND_URL)
+
 logger.info(f"Using API base URL: {API_BASE_URL}")
 
 # Updated valid positions to include all available positions
@@ -63,10 +65,15 @@ def make_api_request(endpoint):
         
         try:
             response_text = response.text
-            logger.debug(f"Raw response: {response_text[:500]}...")  # Log first 500 chars of response
+            logger.debug(f"Raw response: {response_text[:500]}...")
         except Exception as e:
             logger.error(f"Error reading response text: {str(e)}")
         
+        # Check if we got the Streamlit frontend instead of API response
+        if 'text/html' in response.headers.get('Content-Type', '') and 'Streamlit' in response_text:
+            logger.error("Received Streamlit frontend instead of API response")
+            return None
+            
         if response.status_code == 404:
             logger.warning(f"Resource not found: {url}")
             return None
@@ -82,7 +89,7 @@ def make_api_request(endpoint):
         
         try:
             data = response.json()
-            logger.debug(f"Parsed JSON response: {str(data)[:500]}...")  # Log first 500 chars of parsed data
+            logger.debug(f"Parsed JSON response: {str(data)[:500]}...")
             return data
         except ValueError as e:
             logger.error(f"Error parsing JSON response: {str(e)}")
@@ -232,32 +239,32 @@ def search_players():
         
         if not name:
             logger.warning("Search request missing name parameter")
-            return jsonify({'error': 'Name parameter is required'}), 400
+            return jsonify({'error': 'Name parameter is required', 'message': 'Please provide a player name to search for'}), 400
             
         if position and position not in VALID_POSITIONS:
             logger.warning(f"Invalid position requested: {position}")
-            return jsonify({'error': f'Invalid position. Valid positions are: {", ".join(VALID_POSITIONS)}'}), 400
+            return jsonify({'error': 'Invalid position', 'message': f'Valid positions are: {", ".join(VALID_POSITIONS)}'}), 400
         
         # Construct search endpoint
         search_params = {'name': name}
         if position:
             search_params['position'] = position
         
-        endpoint = f"/api/search?{'&'.join(f'{k}={v}' for k, v in search_params.items())}"
+        endpoint = f"/search?{'&'.join(f'{k}={v}' for k, v in search_params.items())}"
         logger.info(f"Constructed search endpoint: {endpoint}")
         
         players = make_api_request(endpoint)
         
         if players is None:
             logger.error("Failed to fetch players from API")
-            return jsonify({'error': 'Failed to fetch player data'}), 500
+            return jsonify({'error': 'API Error', 'message': 'Failed to fetch player data from NFL stats service'}), 500
             
         logger.info(f"Found {len(players) if isinstance(players, list) else 'unknown'} players")
         return jsonify(players)
         
     except Exception as e:
         logger.exception(f"Unexpected error in search_players: {str(e)}")
-        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
+        return jsonify({'error': 'Internal server error', 'message': str(e)}), 500
 
 @app.route('/api/players/<position>')
 def get_players(position):
