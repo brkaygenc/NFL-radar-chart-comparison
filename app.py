@@ -38,36 +38,13 @@ app.config['DEBUG'] = DEBUG
 # Updated API URL to use the new API endpoint with fallback
 API_BASE_URL = os.getenv('NFL_API_URL', 'https://nfl-stats-bd003f70104a.herokuapp.com')
 
-# Sample player data (fallback when API is not available)
-SAMPLE_PLAYERS = {
-    'QB': [
-        {'name': 'Patrick Mahomes', 'position': 'QB', 'team': 'KC', 'passing_yards': 4183, 'passing_touchdowns': 27, 'interceptions': 14, 'rushing_yards': 358},
-        {'name': 'Lamar Jackson', 'position': 'QB', 'team': 'BAL', 'passing_yards': 3678, 'passing_touchdowns': 24, 'interceptions': 7, 'rushing_yards': 821},
-        {'name': 'Josh Allen', 'position': 'QB', 'team': 'BUF', 'passing_yards': 4306, 'passing_touchdowns': 29, 'interceptions': 18, 'rushing_yards': 524},
-    ],
-    'RB': [
-        {'name': 'Christian McCaffrey', 'position': 'RB', 'team': 'SF', 'rushing_yards': 1459, 'rushing_touchdowns': 14, 'receiving_yards': 564, 'receptions': 67},
-        {'name': 'Raheem Mostert', 'position': 'RB', 'team': 'MIA', 'rushing_yards': 1012, 'rushing_touchdowns': 11, 'receiving_yards': 175, 'receptions': 25},
-    ],
-    'WR': [
-        {'name': 'CeeDee Lamb', 'position': 'WR', 'team': 'DAL', 'receiving_yards': 1749, 'receiving_touchdowns': 12, 'receptions': 135, 'targets': 181},
-        {'name': 'Tyreek Hill', 'position': 'WR', 'team': 'MIA', 'receiving_yards': 1799, 'receiving_touchdowns': 13, 'receptions': 119, 'targets': 171},
-    ]
-}
-
 # Updated valid positions to include all available positions
 VALID_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DB', 'DL']
 
 def make_api_request(endpoint):
     """Make a request to the NFL stats API"""
     try:
-        # First try to get data from the external API
-        if endpoint.startswith('/api/search'):
-            url = f"{API_BASE_URL}{endpoint}"
-        else:
-            position = endpoint.split('/')[-1]
-            url = f"{API_BASE_URL}/api/players/{position}"
-        
+        url = f"{API_BASE_URL}{endpoint}"
         logger.info(f"Making API request to: {url}")
         
         headers = {
@@ -76,15 +53,16 @@ def make_api_request(endpoint):
         }
         
         response = requests.get(url, headers=headers, timeout=10)
+        logger.info(f"Response status: {response.status_code}")
+        logger.info(f"Response headers: {dict(response.headers)}")
+        
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+        logger.info(f"Received data: {data[:100] if isinstance(data, str) else str(data)[:100]}...")
+        return data
     except Exception as e:
-        logger.warning(f"API request failed, using sample data: {str(e)}")
-        # If API fails, fall back to sample data
-        if endpoint.startswith('/api/players/'):
-            position = endpoint.split('/')[-1]
-            return SAMPLE_PLAYERS.get(position, [])
-        return []
+        logger.error(f"API request failed: {str(e)}")
+        return None
 
 def validate_xml(xml_string, xsd_path):
     """Validate XML against XSD schema"""
@@ -224,23 +202,20 @@ def search_players():
         return jsonify({'error': f'Invalid position. Valid positions are: {", ".join(VALID_POSITIONS)}'}), 400
     
     try:
-        players = []
-        # If position is specified, search only in that position
+        # Construct search endpoint
+        search_params = {'name': name}
         if position:
-            # Try to get players from API, fall back to sample data if API fails
-            api_players = make_api_request(f'/api/players/{position}')
-            if not api_players:  # If API request failed
-                api_players = SAMPLE_PLAYERS.get(position, [])
-            players = [p for p in api_players if name.lower() in p.get('name', '').lower()]
-        else:
-            # Search across all positions
-            for pos in VALID_POSITIONS:
-                api_players = make_api_request(f'/api/players/{pos}')
-                if not api_players:  # If API request failed
-                    api_players = SAMPLE_PLAYERS.get(pos, [])
-                players.extend([p for p in api_players if name.lower() in p.get('name', '').lower()])
+            search_params['position'] = position
         
-        logger.info(f"Found {len(players)} players matching '{name}' for position {position or 'any'}")
+        # Make API request
+        endpoint = f"/api/search?{'&'.join(f'{k}={v}' for k, v in search_params.items())}"
+        players = make_api_request(endpoint)
+        
+        if players is None:
+            logger.error("Failed to fetch players from API")
+            return jsonify({'error': 'Failed to fetch player data'}), 500
+            
+        logger.info(f"Found {len(players) if isinstance(players, list) else 'unknown'} players")
         return jsonify(players)
     except Exception as e:
         logger.error(f"Error in search_players: {str(e)}")
