@@ -283,7 +283,7 @@
                             label: player.playername || 'Unknown Player',
                             data: playerStats.data.map((value, i) => {
                                 const percentage = (value / stats.maxValues[i]) * 100;
-                                return isNaN(percentage) ? 0 : percentage;
+                                return isNaN(percentage) ? 0 : Math.min(percentage, 100);
                             }),
                             borderColor: COLORS[index].border,
                             backgroundColor: COLORS[index].background,
@@ -296,6 +296,8 @@
                     }).filter(Boolean)
                 },
                 options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
                     scales: {
                         r: {
                             angleLines: {
@@ -308,17 +310,18 @@
                             pointLabels: {
                                 color: '#fff',
                                 font: {
-                                    size: 12
+                                    size: 14,
+                                    weight: 'bold'
                                 }
                             },
                             ticks: {
                                 display: true,
                                 color: '#fff',
                                 backdropColor: 'transparent',
+                                stepSize: 20,
+                                max: 100,
                                 callback: function(value) {
-                                    const maxValue = stats.maxValues[this.index];
-                                    if (!maxValue) return '';
-                                    return Math.round((value / 100) * maxValue);
+                                    return value + '%';
                                 }
                             },
                             suggestedMin: 0,
@@ -331,8 +334,10 @@
                             labels: {
                                 color: '#fff',
                                 font: {
-                                    size: 12
-                                }
+                                    size: 14,
+                                    weight: 'bold'
+                                },
+                                padding: 20
                             }
                         },
                         tooltip: {
@@ -342,7 +347,8 @@
                                     const maxValue = stats.maxValues[context.dataIndex];
                                     if (!maxValue) return '';
                                     const actualValue = (value / 100) * maxValue;
-                                    return `${context.dataset.label}: ${actualValue.toFixed(1)}`;
+                                    const percentage = value.toFixed(1);
+                                    return `${context.dataset.label}: ${actualValue.toFixed(1)} (${percentage}%)`;
                                 }
                             }
                         }
