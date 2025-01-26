@@ -223,15 +223,12 @@ select:hover, select:focus {
 
 .charts-container {
     width: 100%;
-    height: clamp(300px, 60vh, 500px);
-    margin: 15px auto;
-    position: relative;
-    background-color: rgba(255, 255, 255, 0.05);
-    border-radius: 16px;
+    height: 500px;
+    margin: 20px auto;
     padding: 20px;
-    box-sizing: border-box;
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 #statsChart {

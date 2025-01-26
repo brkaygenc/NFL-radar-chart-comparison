@@ -93,12 +93,11 @@
                 return;
             }
 
-            // Set default chart options
-            Chart.defaults.font.family = "'Arial', sans-serif";
-            Chart.defaults.font.size = 14;
-            Chart.defaults.color = '#F9F9F9';
+            if (statsChart) {
+                statsChart.destroy();
+            }
 
-            const defaultOptions = {
+            statsChart = new Chart(chartCanvas, {
                 type: 'radar',
                 data: {
                     labels: [],
@@ -116,15 +115,18 @@
                             },
                             pointLabels: {
                                 font: {
-                                    size: 12
+                                    size: 14,
+                                    family: "'Arial', sans-serif"
                                 },
                                 color: '#F9F9F9'
                             },
                             beginAtZero: true,
+                            suggestedMin: 0,
+                            suggestedMax: 100,
                             ticks: {
                                 stepSize: 20,
                                 font: {
-                                    size: 10
+                                    size: 12
                                 },
                                 color: '#F9F9F9'
                             }
@@ -135,7 +137,8 @@
                             position: 'top',
                             labels: {
                                 font: {
-                                    size: 12
+                                    size: 14,
+                                    family: "'Arial', sans-serif"
                                 },
                                 color: '#F9F9F9',
                                 padding: 20
@@ -145,39 +148,56 @@
                     responsive: true,
                     maintainAspectRatio: false
                 }
-            };
-
-            statsChart = new Chart(chartCanvas, defaultOptions);
+            });
             console.log('Chart initialized:', statsChart);
         }
 
         // Initialize the chart when the page loads
-        document.addEventListener('DOMContentLoaded', initializeChart);
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded, initializing chart...');
+            initializeChart();
+        });
 
         async function fetchPlayerStats(player) {
             try {
                 console.log('Fetching stats for player:', player);
                 const response = await fetch(`/api/players/${player.playerid}/stats`);
+                
                 if (!response.ok) {
-                    throw new Error('Failed to fetch player stats');
+                    throw new Error(`Failed to fetch player stats: ${response.status}`);
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('text/xml')) {
+                    console.warn('Unexpected content type:', contentType);
                 }
                 
                 // Parse XML response
                 const xmlText = await response.text();
-                console.log('XML response:', xmlText);
+                console.log('Raw XML response:', xmlText);
+                
+                if (!xmlText || xmlText.trim() === '') {
+                    throw new Error('Empty response received');
+                }
                 
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
                 
+                // Check for parsing errors
+                const parserError = xmlDoc.querySelector('parsererror');
+                if (parserError) {
+                    throw new Error('XML parsing error: ' + parserError.textContent);
+                }
+                
                 // Convert XML to object
                 const playerNode = xmlDoc.querySelector('player');
                 if (!playerNode) {
-                    throw new Error('Invalid XML format');
+                    throw new Error('No player node found in XML');
                 }
                 
                 const stats = {
-                    playername: playerNode.querySelector('name')?.textContent,
-                    position: playerNode.querySelector('position')?.textContent,
+                    playername: player.playername || playerNode.querySelector('name')?.textContent,
+                    position: player.position || playerNode.querySelector('position')?.textContent,
                     team: playerNode.querySelector('team')?.textContent
                 };
                 
@@ -185,14 +205,16 @@
                 const statNodes = playerNode.children;
                 for (let node of statNodes) {
                     if (node.tagName !== 'name' && node.tagName !== 'position' && node.tagName !== 'team') {
-                        stats[node.tagName] = parseFloat(node.textContent) || 0;
+                        const value = node.textContent.trim();
+                        stats[node.tagName] = value ? parseFloat(value) : 0;
                     }
                 }
                 
-                console.log('Parsed stats:', stats);
+                console.log('Parsed player stats:', stats);
                 return stats;
             } catch (error) {
                 console.error(`Error fetching stats for ${player.playername}:`, error);
+                alert(`Failed to fetch stats for ${player.playername}. Please try again.`);
                 return null;
             }
         }
@@ -206,6 +228,7 @@
                 return;
             }
 
+            console.log('Adding player:', player);
             const stats = await fetchPlayerStats(player);
             if (stats) {
                 selectedPlayers.push({...player, ...stats});
@@ -263,7 +286,7 @@
             };
 
             console.log('Chart data updated:', statsChart.data);
-            statsChart.update();
+            statsChart.update('none'); // Use 'none' animation for immediate update
         }
 
         function getPlayerColor(index) {
