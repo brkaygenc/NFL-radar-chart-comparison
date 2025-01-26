@@ -143,17 +143,32 @@
         }
 
         function getPlayerStats(player) {
-            switch(positionFilter.value) {
+            const position = player.position || positionFilter.value;
+            
+            switch(position) {
                 case 'QB':
                     return {
-                        labels: ['Passing Yards', 'Passing TDs', 'Rushing Yards', 'Rushing TDs', 'Interceptions'],
+                        labels: ['Passing Yards', 'Passing TDs', 'Rushing Yards', 'Rushing TDs', 'Total Points'],
                         data: [
                             parseFloat(player.passingyards) || 0,
                             parseFloat(player.passingtds) || 0,
                             parseFloat(player.rushingyards) || 0,
                             parseFloat(player.rushingtds) || 0,
-                            parseFloat(player.interceptions) || 0
-                        ]
+                            parseFloat(player.totalpoints) || 0
+                        ],
+                        maxValues: [5000, 50, 1000, 15, 500]  // Max values for scaling
+                    };
+                case 'RB':
+                    return {
+                        labels: ['Rushing Yards', 'Rushing TDs', 'Receptions', 'Receiving Yards', 'Total Points'],
+                        data: [
+                            parseFloat(player.rushingyards) || 0,
+                            parseFloat(player.rushingtds) || 0,
+                            parseFloat(player.receptions) || 0,
+                            parseFloat(player.receivingyards) || 0,
+                            parseFloat(player.totalpoints) || 0
+                        ],
+                        maxValues: [2000, 20, 100, 1000, 400]
                     };
                 case 'WR':
                 case 'TE':
@@ -165,112 +180,103 @@
                             parseFloat(player.receptions) || 0,
                             parseFloat(player.targets) || 0,
                             parseFloat(player.totalpoints) || 0
-                        ]
+                        ],
+                        maxValues: [2000, 20, 150, 200, 400]
                     };
-                case 'RB':
+                case 'K':
                     return {
-                        labels: ['Rushing Yards', 'Rushing TDs', 'Receptions', 'Receiving Yards', 'Total Points'],
+                        labels: ['Field Goals', 'FG Attempts', 'Extra Points', 'XP Attempts', 'Total Points'],
                         data: [
-                            parseFloat(player.rushingyards) || 0,
-                            parseFloat(player.rushingtds) || 0,
-                            parseFloat(player.receptions) || 0,
-                            parseFloat(player.receivingyards) || 0,
+                            parseFloat(player.fieldgoals) || 0,
+                            parseFloat(player.fieldgoalattempts) || 0,
+                            parseFloat(player.extrapoints) || 0,
+                            parseFloat(player.extrapointattempts) || 0,
                             parseFloat(player.totalpoints) || 0
-                        ]
+                        ],
+                        maxValues: [50, 50, 60, 60, 200]
                     };
                 case 'LB':
                 case 'DB':
                 case 'DL':
                     return {
-                        labels: ['Tackles', 'Sacks', 'Interceptions', 'Passes Defended', 'Total Points'],
+                        labels: ['Tackles', 'Sacks', 'Interceptions', 'Passes Defended', 'QB Hits'],
                         data: [
-                            parseFloat(player.tackles) || 0,
+                            (parseFloat(player.tackles) || 0) + (parseFloat(player.tackles_ast) || 0),
                             parseFloat(player.sacks) || 0,
                             parseFloat(player.interceptions) || 0,
-                            parseFloat(player.passesdefended) || 0,
-                            parseFloat(player.totalpoints) || 0
-                        ]
+                            parseFloat(player.passes_defended) || 0,
+                            parseFloat(player.qb_hits) || 0
+                        ],
+                        maxValues: [150, 25, 10, 30, 50]
                     };
                 default:
                     return {
                         labels: ['Total Points'],
-                        data: [parseFloat(player.totalpoints) || 0]
+                        data: [parseFloat(player.totalpoints) || 0],
+                        maxValues: [500]
                     };
             }
         }
 
         function updateChart() {
+            if (chart) {
+                chart.destroy();
+            }
+
             if (selectedPlayersData.length === 0) {
-                if (chart) {
-                    chart.destroy();
-                    chart = null;
-                }
                 return;
             }
 
             const firstPlayer = selectedPlayersData[0];
             const stats = getPlayerStats(firstPlayer);
+            
             const ctx = document.getElementById('statsChart').getContext('2d');
             
-            const datasets = selectedPlayersData.map((player, index) => {
-                const playerStats = getPlayerStats(player);
-                return {
-                    label: player.playername,
-                    data: playerStats.data,
-                    borderColor: COLORS[index].border,
-                    backgroundColor: COLORS[index].background,
-                    borderWidth: 2,
-                    pointBackgroundColor: COLORS[index].border,
-                    pointBorderColor: '#fff',
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: COLORS[index].border,
-                    fill: true
-                };
-            });
-
-            if (chart) {
-                chart.destroy();
-            }
-
-            // Calculate max values for each stat
-            const maxValues = stats.data.map((_, statIndex) => {
-                return Math.max(...selectedPlayersData.map(p => {
-                    const playerStats = getPlayerStats(p);
-                    return playerStats.data[statIndex];
-                }));
-            });
-
             chart = new Chart(ctx, {
                 type: 'radar',
                 data: {
                     labels: stats.labels,
-                    datasets: datasets
+                    datasets: selectedPlayersData.map((player, index) => {
+                        const playerStats = getPlayerStats(player);
+                        return {
+                            label: player.playername,
+                            data: playerStats.data.map((value, i) => (value / stats.maxValues[i]) * 100), // Convert to percentage
+                            borderColor: COLORS[index].border,
+                            backgroundColor: COLORS[index].background,
+                            borderWidth: 2,
+                            pointBackgroundColor: COLORS[index].border,
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: COLORS[index].border
+                        };
+                    })
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
                     scales: {
                         r: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
                             angleLines: {
-                                color: 'rgba(255, 255, 255, 0.1)'
+                                display: true,
+                                color: 'rgba(255, 255, 255, 0.2)'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.2)'
                             },
                             pointLabels: {
                                 color: '#fff',
                                 font: {
-                                    size: 14
+                                    size: 12
+                                }
+                            },
+                            ticks: {
+                                display: true,
+                                color: '#fff',
+                                backdropColor: 'transparent',
+                                callback: function(value) {
+                                    return Math.round((value / 100) * stats.maxValues[this.index]);
                                 }
                             },
                             suggestedMin: 0,
-                            suggestedMax: Math.max(...maxValues),
-                            ticks: {
-                                color: '#fff',
-                                backdropColor: 'transparent',
-                                stepSize: Math.ceil(Math.max(...maxValues) / 5)
-                            }
+                            suggestedMax: 100
                         }
                     },
                     plugins: {
@@ -278,8 +284,19 @@
                             position: 'bottom',
                             labels: {
                                 color: '#fff',
-                                padding: 20,
-                                usePointStyle: true
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    const maxValue = stats.maxValues[context.dataIndex];
+                                    const actualValue = (value / 100) * maxValue;
+                                    return `${context.dataset.label}: ${actualValue.toFixed(1)}`;
+                                }
                             }
                         }
                     }
