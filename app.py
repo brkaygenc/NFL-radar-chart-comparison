@@ -311,17 +311,23 @@ def get_team_players(team_code):
 def get_player_stats(playerid):
     """Get stats for a specific player"""
     try:
+        logger.info(f"Fetching stats for player ID: {playerid}")
         # Get all players for each position until we find the one we want
         for position in VALID_POSITIONS:
+            logger.info(f"Checking position {position}")
             all_players = make_api_request(f'/api/players/{position}')
             if not all_players:
+                logger.warning(f"No players found for position {position}")
                 continue
                 
             # Find this player's stats
-            player_stats = next((p for p in all_players if p.get('playerid') == playerid), None)
+            player_stats = next((p for p in all_players if str(p.get('playerid')) == str(playerid)), None)
             if player_stats:
+                logger.info(f"Found stats for player {playerid} in position {position}")
+                logger.debug(f"Stats: {player_stats}")
                 return jsonify(player_stats)
                 
+        logger.warning(f"Player stats not found for ID {playerid} in any position")
         return jsonify({'error': 'Player stats not found'}), 404
     except Exception as e:
         logger.error(f"Error in get_player_stats: {str(e)}")
