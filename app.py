@@ -307,6 +307,18 @@ def get_team_players(team_code):
         logger.error(f"Error in get_team_players: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
+@app.route('/api/players/<playerid>/stats')
+def get_player_stats(playerid):
+    """Get stats for a specific player"""
+    try:
+        stats = make_api_request(f'/api/players/{playerid}/stats')
+        if stats is None:
+            return jsonify({'error': 'Failed to fetch player stats'}), 500
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"Error in get_player_stats: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port) 
