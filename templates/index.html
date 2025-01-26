@@ -49,45 +49,36 @@
 
         const statsConfig = {
             'QB': {
-                stats: ['passing_yards', 'passing_touchdowns', 'rushing_yards', 'interceptions', 'total_points'],
-                labels: ['Passing Yards', 'Passing TDs', 'Rushing Yards', 'Interceptions', 'Total Points'],
-                maxValues: [5000, 50, 1000, 20, 400],
-                invertedStats: ['interceptions']
+                stats: ['passing_yards', 'passing_touchdowns', 'rushing_yards', 'interceptions'],
+                labels: ['Passing Yards', 'Passing TDs', 'Rushing Yards', 'INTs'],
             },
             'RB': {
-                stats: ['rushing_yards', 'rushing_touchdowns', 'receiving_yards', 'receptions', 'total_points'],
-                labels: ['Rushing Yards', 'Rushing TDs', 'Receiving Yards', 'Receptions', 'Total Points'],
-                maxValues: [2000, 20, 1000, 100, 400]
+                stats: ['rushing_yards', 'rushing_touchdowns', 'receiving_yards', 'receptions'],
+                labels: ['Rushing Yards', 'Rushing TDs', 'Receiving Yards', 'Receptions'],
             },
             'WR': {
-                stats: ['receiving_yards', 'receiving_touchdowns', 'receptions', 'targets', 'total_points'],
-                labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets', 'Total Points'],
-                maxValues: [2000, 20, 120, 180, 400]
+                stats: ['receiving_yards', 'receiving_touchdowns', 'receptions', 'targets'],
+                labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets'],
             },
             'TE': {
-                stats: ['receiving_yards', 'receiving_touchdowns', 'receptions', 'targets', 'total_points'],
-                labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets', 'Total Points'],
-                maxValues: [1500, 15, 100, 150, 300]
+                stats: ['receiving_yards', 'receiving_touchdowns', 'receptions', 'targets'],
+                labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets'],
             },
             'K': {
-                stats: ['field_goals_made', 'field_goals_attempted', 'extra_points_made', 'extra_points_attempted', 'total_points'],
-                labels: ['Field Goals', 'FG Attempts', 'Extra Points', 'XP Attempts', 'Total Points'],
-                maxValues: [40, 45, 60, 65, 200]
+                stats: ['fieldgoals', 'fieldgoal_attempts', 'extrapoints', 'extrapoint_attempts'],
+                labels: ['Field Goals', 'FG Attempts', 'Extra Points', 'XP Attempts'],
             },
             'LB': {
-                stats: ['total_tackles', 'sacks', 'tackles_for_loss', 'forced_fumbles', 'total_points'],
-                labels: ['Tackles', 'Sacks', 'TFL', 'Forced Fumbles', 'Total Points'],
-                maxValues: [150, 15, 25, 5, 200]
+                stats: ['tackles', 'sacks', 'tackles_for_loss', 'forced_fumbles'],
+                labels: ['Tackles', 'Sacks', 'TFL', 'Forced Fumbles'],
             },
             'DB': {
-                stats: ['total_tackles', 'interceptions', 'passes_defended', 'forced_fumbles', 'total_points'],
-                labels: ['Tackles', 'Interceptions', 'Passes Defended', 'Forced Fumbles', 'Total Points'],
-                maxValues: [120, 10, 25, 5, 200]
+                stats: ['tackles', 'interceptions', 'passes_defended', 'forced_fumbles'],
+                labels: ['Tackles', 'Interceptions', 'Passes Defended', 'Forced Fumbles'],
             },
             'DL': {
-                stats: ['total_tackles', 'sacks', 'tackles_for_loss', 'forced_fumbles', 'total_points'],
-                labels: ['Tackles', 'Sacks', 'TFL', 'Forced Fumbles', 'Total Points'],
-                maxValues: [100, 20, 25, 5, 200]
+                stats: ['tackles', 'sacks', 'tackles_for_loss', 'forced_fumbles'],
+                labels: ['Tackles', 'Sacks', 'TFL', 'Forced Fumbles'],
             }
         };
 
@@ -120,14 +111,8 @@
                             },
                             color: '#F9F9F9'
                         },
-                        suggestedMin: 0,
-                        suggestedMax: 100,
-                        beginAtZero: true,
                         ticks: {
-                            stepSize: 20,
-                            font: {
-                                size: 10
-                            }
+                            display: false
                         }
                     }
                 },
@@ -165,24 +150,19 @@
             try {
                 console.log('Fetching stats for player:', player);
                 const response = await fetch(`/api/players/${player.playerid}/stats`);
-                console.log('Stats response:', response);
                 if (!response.ok) {
-                    const error = await response.json();
-                    console.error('Error response:', error);
-                    throw new Error(`Failed to fetch stats for ${player.playername}: ${error.message || error.error}`);
+                    throw new Error('Failed to fetch player stats');
                 }
                 const stats = await response.json();
                 console.log('Received stats:', stats);
                 return stats;
             } catch (error) {
                 console.error(`Error fetching stats for ${player.playername}:`, error);
-                alert(`Failed to fetch stats for ${player.playername}: ${error.message}`);
                 return null;
             }
         }
 
         async function addPlayer(player) {
-            console.log('Adding player:', player);
             if (selectedPlayers.length >= maxPlayers) {
                 alert('You can only compare up to 5 players');
                 return;
@@ -191,52 +171,20 @@
                 return;
             }
 
-            // Fetch player stats before adding
             const stats = await fetchPlayerStats(player);
-            console.log('Fetched stats:', stats);
             if (stats) {
-                // Merge the stats with the player object
-                Object.assign(player, stats);
-                selectedPlayers.push(player);
-                console.log('Updated selectedPlayers:', selectedPlayers);
+                selectedPlayers.push({...player, ...stats});
                 updatePlayerTags();
                 updateChart();
             }
-        }
-
-        function removePlayer(playerName) {
-            const index = selectedPlayers.findIndex(p => p.playername === playerName);
-            if (index !== -1) {
-                selectedPlayers.splice(index, 1);
-                updatePlayerTags();
-                updateChart();
-            }
-        }
-
-        function updatePlayerTags() {
-            const tagsContainer = document.querySelector('.player-tags');
-            tagsContainer.innerHTML = selectedPlayers.map((player, index) => 
-                createPlayerTag(player, index)
-            ).join('');
         }
 
         function updateChart() {
-            console.log('Updating chart with players:', selectedPlayers);
-            if (!statsChart) {
-                console.error('Chart not initialized');
+            if (!statsChart || selectedPlayers.length === 0) {
                 return;
             }
 
             const firstPlayer = selectedPlayers[0];
-            if (!firstPlayer) {
-                console.log('No players selected');
-                // Clear the chart
-                statsChart.data.labels = [];
-                statsChart.data.datasets = [];
-                statsChart.update();
-                return;
-            }
-
             const position = firstPlayer.position;
             const config = statsConfig[position];
             if (!config) {
@@ -244,26 +192,13 @@
                 return;
             }
 
-            console.log('Using config:', config);
-
             statsChart.data = {
                 labels: config.labels,
                 datasets: selectedPlayers.map((player, index) => {
                     const color = getPlayerColor(index);
-                    console.log(`Processing player ${player.playername} with data:`, player);
-                    
-                    // Map the stats based on position configuration
                     const values = config.stats.map(stat => {
                         const value = parseFloat(player[stat] || 0);
-                        console.log(`Stat ${stat}:`, value);
-                        // For inverted stats (like interceptions), invert the normalized value
-                        const maxValue = config.maxValues[config.stats.indexOf(stat)];
-                        const normalizedValue = (value / maxValue) * 100;
-                        const finalValue = config.invertedStats && config.invertedStats.includes(stat) 
-                            ? 100 - normalizedValue 
-                            : normalizedValue;
-                        console.log(`Normalized value for ${stat}:`, finalValue);
-                        return finalValue;
+                        return value;
                     });
 
                     return {
@@ -282,7 +217,6 @@
                 })
             };
 
-            // Update the chart
             statsChart.update();
         }
 
@@ -420,6 +354,22 @@
             } catch (error) {
                 console.error('Error searching players:', error);
                 throw error;
+            }
+        }
+
+        function updatePlayerTags() {
+            const tagsContainer = document.querySelector('.player-tags');
+            tagsContainer.innerHTML = selectedPlayers.map((player, index) => 
+                createPlayerTag(player, index)
+            ).join('');
+        }
+
+        function removePlayer(playerName) {
+            const index = selectedPlayers.findIndex(p => p.playername === playerName);
+            if (index !== -1) {
+                selectedPlayers.splice(index, 1);
+                updatePlayerTags();
+                updateChart();
             }
         }
     </script>

@@ -313,38 +313,59 @@ def get_player_stats(playerid):
     try:
         logger.info(f"Fetching stats for player ID: {playerid}")
         
-        # First try to get the player's position from search
+        # First try to get the player's position
         search_response = make_api_request(f'/api/search?name={playerid}')
-        if search_response and isinstance(search_response, list) and len(search_response) > 0:
-            player = search_response[0]
-            position = player.get('position')
-            if position:
-                logger.info(f"Found player position from search: {position}")
-                all_players = make_api_request(f'/api/players/{position}')
-                if all_players:
-                    # Find this player's stats
-                    player_stats = next((p for p in all_players if str(p.get('playerid')) == str(playerid)), None)
-                    if player_stats:
-                        logger.info(f"Found stats for player {playerid} in position {position}")
-                        return jsonify(player_stats)
+        if not search_response or not isinstance(search_response, list) or len(search_response) == 0:
+            logger.warning(f"No player found with ID {playerid}")
+            return jsonify({'error': 'Player not found'}), 404
+
+        player = search_response[0]
+        position = player.get('position')
         
-        # If not found or no position, try all positions
-        logger.info("Player not found in search results, trying all positions")
-        for position in VALID_POSITIONS:
-            logger.info(f"Checking position {position}")
-            all_players = make_api_request(f'/api/players/{position}')
-            if not all_players:
-                logger.warning(f"No players found for position {position}")
-                continue
-                
-            # Find this player's stats
-            player_stats = next((p for p in all_players if str(p.get('playerid')) == str(playerid)), None)
-            if player_stats:
-                logger.info(f"Found stats for player {playerid} in position {position}")
-                return jsonify(player_stats)
-                
-        logger.warning(f"Player stats not found for ID {playerid} in any position")
-        return jsonify({'error': 'Player stats not found'}), 404
+        if not position:
+            logger.warning(f"No position found for player {playerid}")
+            return jsonify({'error': 'Player position not found'}), 404
+
+        # Get player stats based on position
+        all_players = make_api_request(f'/api/players/{position}')
+        if not all_players:
+            logger.warning(f"No players found for position {position}")
+            return jsonify({'error': 'No players found for position'}), 404
+
+        # Find this player's stats
+        player_stats = next((p for p in all_players if str(p.get('playerid')) == str(playerid)), None)
+        if not player_stats:
+            logger.warning(f"Stats not found for player {playerid} in position {position}")
+            return jsonify({'error': 'Player stats not found'}), 404
+
+        # Map stats according to XSD schema
+        mapped_stats = {
+            'name': player_stats.get('playername'),
+            'position': position,
+            'team': player_stats.get('team'),
+            'passing_yards': player_stats.get('passing_yards', 0),
+            'passing_touchdowns': player_stats.get('passing_touchdowns', 0),
+            'interceptions': player_stats.get('interceptions', 0),
+            'rushing_yards': player_stats.get('rushing_yards', 0),
+            'rushing_touchdowns': player_stats.get('rushing_touchdowns', 0),
+            'receptions': player_stats.get('receptions', 0),
+            'receiving_yards': player_stats.get('receiving_yards', 0),
+            'receiving_touchdowns': player_stats.get('receiving_touchdowns', 0),
+            'targets': player_stats.get('targets', 0),
+            'tackles': player_stats.get('total_tackles', 0),
+            'sacks': player_stats.get('sacks', 0),
+            'tackles_for_loss': player_stats.get('tackles_for_loss', 0),
+            'passes_defended': player_stats.get('passes_defended', 0),
+            'forced_fumbles': player_stats.get('forced_fumbles', 0),
+            'fieldgoals': player_stats.get('field_goals_made', 0),
+            'fieldgoal_attempts': player_stats.get('field_goals_attempted', 0),
+            'extrapoints': player_stats.get('extra_points_made', 0),
+            'extrapoint_attempts': player_stats.get('extra_points_attempted', 0),
+            'total_points': player_stats.get('total_points', 0)
+        }
+
+        logger.info(f"Mapped stats for player {playerid}: {mapped_stats}")
+        return jsonify(mapped_stats)
     except Exception as e:
         logger.error(f"Error in get_player_stats: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
