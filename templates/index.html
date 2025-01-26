@@ -108,18 +108,19 @@
         }
 
         function addPlayer(player) {
-            if (selectedPlayers.has(player.playerid)) return;
-            if (selectedPlayers.size >= 5) {
-                alert('Maximum 5 players can be compared');
+            if (selectedPlayers.has(player.playerid)) {
+                return;
+            }
+            
+            if (selectedPlayersData.length >= 3) {
+                alert('You can compare up to 3 players at a time');
                 return;
             }
             
             selectedPlayers.add(player.playerid);
             selectedPlayersData.push(player);
-            updateChart();
             updateSelectedPlayersList();
-            searchResults.innerHTML = '';
-            searchInput.value = '';
+            updateChart();
         }
 
         function removePlayer(playerId) {
@@ -143,104 +144,147 @@
         }
 
         function getPlayerStats(player) {
+            // Ensure we have valid player data
+            if (!player || typeof player !== 'object') {
+                console.error('Invalid player data:', player);
+                return {
+                    labels: [],
+                    data: [],
+                    maxValues: []
+                };
+            }
+
             const position = player.position || positionFilter.value;
+            console.log('Processing player:', player.playername, 'Position:', position);
             
             switch(position) {
                 case 'QB':
-                    return {
+                    const qbStats = {
                         labels: ['Passing Yards', 'Passing TDs', 'Rushing Yards', 'Rushing TDs', 'Total Points'],
                         data: [
-                            parseFloat(player.passingyards) || 0,
-                            parseFloat(player.passingtds) || 0,
-                            parseFloat(player.rushingyards) || 0,
-                            parseFloat(player.rushingtds) || 0,
-                            parseFloat(player.totalpoints) || 0
+                            Number(player.passingyards) || 0,
+                            Number(player.passingtds) || 0,
+                            Number(player.rushingyards) || 0,
+                            Number(player.rushingtds) || 0,
+                            Number(player.totalpoints) || 0
                         ],
-                        maxValues: [5000, 50, 1000, 15, 500]  // Max values for scaling
+                        maxValues: [5000, 50, 1000, 15, 500]
                     };
+                    console.log('QB Stats:', qbStats);
+                    return qbStats;
+
                 case 'RB':
-                    return {
+                    const rbStats = {
                         labels: ['Rushing Yards', 'Rushing TDs', 'Receptions', 'Receiving Yards', 'Total Points'],
                         data: [
-                            parseFloat(player.rushingyards) || 0,
-                            parseFloat(player.rushingtds) || 0,
-                            parseFloat(player.receptions) || 0,
-                            parseFloat(player.receivingyards) || 0,
-                            parseFloat(player.totalpoints) || 0
+                            Number(player.rushingyards) || 0,
+                            Number(player.rushingtds) || 0,
+                            Number(player.receptions) || 0,
+                            Number(player.receivingyards) || 0,
+                            Number(player.totalpoints) || 0
                         ],
                         maxValues: [2000, 20, 100, 1000, 400]
                     };
+                    console.log('RB Stats:', rbStats);
+                    return rbStats;
+
                 case 'WR':
                 case 'TE':
-                    return {
+                    const wrStats = {
                         labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets', 'Total Points'],
                         data: [
-                            parseFloat(player.receivingyards) || 0,
-                            parseFloat(player.receivingtds) || 0,
-                            parseFloat(player.receptions) || 0,
-                            parseFloat(player.targets) || 0,
-                            parseFloat(player.totalpoints) || 0
+                            Number(player.receivingyards) || 0,
+                            Number(player.receivingtds) || 0,
+                            Number(player.receptions) || 0,
+                            Number(player.targets) || 0,
+                            Number(player.totalpoints) || 0
                         ],
                         maxValues: [2000, 20, 150, 200, 400]
                     };
+                    console.log('WR/TE Stats:', wrStats);
+                    return wrStats;
+
                 case 'K':
-                    return {
+                    const kStats = {
                         labels: ['Field Goals', 'FG Attempts', 'Extra Points', 'XP Attempts', 'Total Points'],
                         data: [
-                            parseFloat(player.fieldgoals) || 0,
-                            parseFloat(player.fieldgoalattempts) || 0,
-                            parseFloat(player.extrapoints) || 0,
-                            parseFloat(player.extrapointattempts) || 0,
-                            parseFloat(player.totalpoints) || 0
+                            Number(player.fieldgoals) || 0,
+                            Number(player.fieldgoalattempts) || 0,
+                            Number(player.extrapoints) || 0,
+                            Number(player.extrapointattempts) || 0,
+                            Number(player.totalpoints) || 0
                         ],
                         maxValues: [50, 50, 60, 60, 200]
                     };
+                    console.log('K Stats:', kStats);
+                    return kStats;
+
                 case 'LB':
                 case 'DB':
                 case 'DL':
-                    return {
+                    const defStats = {
                         labels: ['Tackles', 'Sacks', 'Interceptions', 'Passes Defended', 'QB Hits'],
                         data: [
-                            (parseFloat(player.tackles) || 0) + (parseFloat(player.tackles_ast) || 0),
-                            parseFloat(player.sacks) || 0,
-                            parseFloat(player.interceptions) || 0,
-                            parseFloat(player.passes_defended) || 0,
-                            parseFloat(player.qb_hits) || 0
+                            Number(player.tackles || 0) + Number(player.tackles_ast || 0),
+                            Number(player.sacks) || 0,
+                            Number(player.interceptions) || 0,
+                            Number(player.passes_defended) || 0,
+                            Number(player.qb_hits) || 0
                         ],
                         maxValues: [150, 25, 10, 30, 50]
                     };
+                    console.log('Defense Stats:', defStats);
+                    return defStats;
+
                 default:
+                    console.error('Unknown position:', position);
                     return {
                         labels: ['Total Points'],
-                        data: [parseFloat(player.totalpoints) || 0],
+                        data: [Number(player.totalpoints) || 0],
                         maxValues: [500]
                     };
             }
         }
 
         function updateChart() {
-            if (chart) {
-                chart.destroy();
-            }
-
             if (selectedPlayersData.length === 0) {
+                if (chart) {
+                    chart.destroy();
+                    chart = null;
+                }
                 return;
             }
 
             const firstPlayer = selectedPlayersData[0];
             const stats = getPlayerStats(firstPlayer);
             
+            if (!stats || !stats.labels || !stats.data || !stats.maxValues) {
+                console.error('Invalid stats object:', stats);
+                return;
+            }
+
             const ctx = document.getElementById('statsChart').getContext('2d');
             
+            if (chart) {
+                chart.destroy();
+            }
+
             chart = new Chart(ctx, {
                 type: 'radar',
                 data: {
                     labels: stats.labels,
                     datasets: selectedPlayersData.map((player, index) => {
                         const playerStats = getPlayerStats(player);
+                        if (!playerStats || !playerStats.data) {
+                            console.error('Invalid player stats:', playerStats);
+                            return null;
+                        }
                         return {
-                            label: player.playername,
-                            data: playerStats.data.map((value, i) => (value / stats.maxValues[i]) * 100), // Convert to percentage
+                            label: player.playername || 'Unknown Player',
+                            data: playerStats.data.map((value, i) => {
+                                const percentage = (value / stats.maxValues[i]) * 100;
+                                return isNaN(percentage) ? 0 : percentage;
+                            }),
                             borderColor: COLORS[index].border,
                             backgroundColor: COLORS[index].background,
                             borderWidth: 2,
@@ -249,7 +293,7 @@
                             pointHoverBackgroundColor: '#fff',
                             pointHoverBorderColor: COLORS[index].border
                         };
-                    })
+                    }).filter(Boolean)
                 },
                 options: {
                     scales: {
@@ -272,7 +316,9 @@
                                 color: '#fff',
                                 backdropColor: 'transparent',
                                 callback: function(value) {
-                                    return Math.round((value / 100) * stats.maxValues[this.index]);
+                                    const maxValue = stats.maxValues[this.index];
+                                    if (!maxValue) return '';
+                                    return Math.round((value / 100) * maxValue);
                                 }
                             },
                             suggestedMin: 0,
@@ -294,6 +340,7 @@
                                 label: function(context) {
                                     const value = context.raw;
                                     const maxValue = stats.maxValues[context.dataIndex];
+                                    if (!maxValue) return '';
                                     const actualValue = (value / 100) * maxValue;
                                     return `${context.dataset.label}: ${actualValue.toFixed(1)}`;
                                 }
@@ -303,6 +350,10 @@
                 }
             });
         }
+
+        // Add event listeners
+        searchInput.addEventListener('input', debounce(handleSearch, 300));
+        document.querySelector('.search-btn').addEventListener('click', handleSearch);
     </script>
 </body>
 </html>
