@@ -55,24 +55,16 @@
             }
             
             try {
-                searchResults.innerHTML = '<div class="loading">Searching...</div>';
                 const response = await fetch(`/api/search?name=${encodeURIComponent(query)}&position=${encodeURIComponent(position)}`);
                 const data = await response.json();
                 
-                if (!response.ok) {
-                    throw new Error(data.error || 'Failed to search players');
+                if (data.error) {
+                    throw new Error(data.error);
                 }
                 
                 displaySearchResults(data);
             } catch (error) {
-                console.error('Search error:', error);
-                searchResults.innerHTML = `
-                    <div class="error-message">
-                        ${error.message.includes('Network') ? 
-                          'Network error. Please check your internet connection and try again.' :
-                          `Error: ${error.message}`}
-                        <button onclick="handleSearch()" class="retry-btn">Retry</button>
-                    </div>`;
+                searchResults.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
             }
         }
 
@@ -86,24 +78,16 @@
                 .filter(player => !selectedPlayers.has(player.playerid))
                 .map(player => `
                     <div class="player-card" onclick="addPlayer(${JSON.stringify(player).replace(/"/g, '&quot;')})">
-                        <div class="player-info">
-                            <span class="player-name">${player.playername}</span>
-                            <span class="player-details">${player.position} | ${player.team}</span>
-                        </div>
-                        <div class="player-stats">
-                            <span>Total Points: ${player.totalpoints}</span>
-                        </div>
+                        <div class="player-name">${player.playername}</div>
+                        <div class="player-team">${player.team}</div>
                     </div>
                 `).join('');
         }
 
         function addPlayer(player) {
-            if (selectedPlayers.has(player.playerid)) {
-                return;
-            }
-            
+            if (selectedPlayers.has(player.playerid)) return;
             if (selectedPlayers.size >= 5) {
-                alert('Maximum 5 players can be compared at once');
+                alert('Maximum 5 players can be compared');
                 return;
             }
             

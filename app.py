@@ -252,55 +252,23 @@ def serve_static(filename):
 
 @app.route('/api/search')
 def search_players():
+    name = request.args.get('name', '').strip()
+    position = request.args.get('position', '').strip().upper()
+    
+    if not name:
+        return jsonify([])
+        
     try:
-        name = request.args.get('name', '').strip()
-        position = request.args.get('position', '').strip().upper()
-        
-        if not name:
-            return jsonify({'error': 'Name parameter is required'}), 400
-            
-        try:
-            if position:
-                response = make_api_request(f"/api/players/{position}")
-                players = response.json()
-                players = [p for p in players if name.lower() in p['playername'].lower()]
-            else:
-                response = make_api_request("/api/players/positions")
-                positions = response.json()
-                players = []
-                for pos in positions:
-                    try:
-                        pos_response = make_api_request(f"/api/players/{pos}")
-                        pos_players = pos_response.json()
-                        players.extend([p for p in pos_players if name.lower() in p['playername'].lower()])
-                    except Exception as e:
-                        logger.warning(f"Failed to fetch players for position {pos}: {str(e)}")
-                        continue
-                        
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Network error: {str(e)}")
-            return jsonify({'error': 'Network error. Please check your connection and try again.'}), 503
-        except ValueError as e:
-            logger.error(f"Failed to parse API response: {str(e)}")
-            return jsonify({'error': 'Invalid response from API'}), 500
-        
-        if not players:
-            return jsonify([])
-            
-        # Convert string values to float for sorting
-        for player in players:
-            try:
-                player['totalpoints'] = float(player.get('totalpoints', 0))
-            except (ValueError, TypeError):
-                player['totalpoints'] = 0
-            
-        # Sort by total points
-        players.sort(key=lambda x: x['totalpoints'], reverse=True)
-        return jsonify(players)
-        
+        url = f"{API_BASE_URL}/api/players/{position}"
+        response = requests.get(url, timeout=5)
+        if response.ok:
+            players = response.json()
+            players = [p for p in players if name.lower() in p['playername'].lower()]
+            return jsonify(players)
+        else:
+            return jsonify({'error': 'Failed to fetch players'}), 500
     except Exception as e:
-        logger.error(f"Error in search_players: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Failed to search players. Please try again later.'}), 500
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/players/<position>')
 def get_players(position):
