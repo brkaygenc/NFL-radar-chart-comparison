@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, send_from_directory, request
+from flask import Flask, render_template, jsonify, send_from_directory, request, Response
 from flask_cors import CORS
 import requests
 import xml.etree.ElementTree as ET
@@ -417,6 +417,39 @@ def get_player_stats(playerid):
     except Exception as e:
         logger.error(f"Error in get_player_stats: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
+
+def json_to_xml(player_data):
+    """Convert JSON player stats to XML format"""
+    root = etree.Element("player")
+    
+    # Add basic player info
+    name = etree.SubElement(root, "name")
+    name.text = player_data.get('playername', '')
+    
+    position = etree.SubElement(root, "position")
+    position.text = player_data.get('position', '')
+    
+    team = etree.SubElement(root, "team")
+    team.text = player_data.get('team', '')
+    
+    # Add all stats
+    for key, value in player_data.items():
+        if key not in ['playername', 'position', 'team', 'playerid']:
+            stat = etree.SubElement(root, key)
+            stat.text = str(value)
+    
+    # Validate against schema
+    try:
+        xsd_path = os.path.join(os.path.dirname(__file__), 'static', 'player_stats.xsd')
+        with open(xsd_path, 'rb') as f:
+            xsd_doc = etree.parse(f)
+            schema = etree.XMLSchema(xsd_doc)
+        schema.assertValid(root)
+    except etree.DocumentInvalid as e:
+        logger.error(f"XML validation error: {e}")
+        return None
+    
+    return etree.tostring(root, pretty_print=True, encoding='utf-8', xml_declaration=True)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
