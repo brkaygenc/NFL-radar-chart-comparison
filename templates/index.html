@@ -45,6 +45,7 @@
     <script>
         let selectedPlayers = [];
         const maxPlayers = 5;
+        let statsChart = null;  // Keep track of the chart instance
 
         const statsConfig = {
             'QB': {
@@ -90,88 +91,75 @@
             }
         };
 
-        async function searchPlayers(query, position) {
-            try {
-                // Don't search if query is too short
-                if (query.length < 2) {
-                    return [];
-                }
-
-                const apiUrl = `https://nfl-stats-api-2024-b3f5cb494117.herokuapp.com/api/search?name=${encodeURIComponent(query)}&position=${position}`;
-                console.log(`Making API request to: ${apiUrl}`);
-                console.log(`Search query: "${query}", Position: "${position}"`);
-                
-                const response = await fetch(apiUrl);
-                console.log('Response status:', response.status);
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error(`HTTP error! status: ${response.status}`);
-                    console.error('Error response:', errorText);
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const players = await response.json();
-                console.log(`Found ${players.length} players:`, players);
-
-                // Filter and limit to top 5 matches
-                const filteredPlayers = players
-                    .filter(player => {
-                        if (!player.playername) {
-                            console.log('Player missing name:', player);
-                            return false;
-                        }
-                        const match = player.playername.toLowerCase().includes(query.toLowerCase());
-                        if (match) {
-                            console.log('Found matching player:', player.playername);
-                        }
-                        return match;
-                    })
-                    .slice(0, 5);
-
-                console.log(`Returning ${filteredPlayers.length} matching players:`, filteredPlayers);
-                return filteredPlayers;
-            } catch (error) {
-                console.error('Error searching players:', error);
-                throw error;
+        // Initialize chart with default options
+        function initializeChart() {
+            const chartCanvas = document.getElementById('statsChart');
+            if (!chartCanvas) {
+                console.error('Chart canvas not found');
+                return;
             }
-        }
 
-        // Debounce function to limit API calls
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
+            // Set default chart options
+            Chart.defaults.font.family = "'Arial', sans-serif";
+            Chart.defaults.font.size = 14;
+            Chart.defaults.color = '#F9F9F9';
+
+            const defaultOptions = {
+                scales: {
+                    r: {
+                        angleLines: {
+                            display: true,
+                            color: 'rgba(255, 255, 255, 0.2)'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.2)'
+                        },
+                        pointLabels: {
+                            font: {
+                                size: 12
+                            },
+                            color: '#F9F9F9'
+                        },
+                        suggestedMin: 0,
+                        suggestedMax: 100,
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 20,
+                            font: {
+                                size: 10
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 12
+                            },
+                            color: '#F9F9F9',
+                            padding: 20
+                        }
+                    }
+                },
+                responsive: true,
+                maintainAspectRatio: false
             };
+
+            // Create empty chart with default options
+            statsChart = new Chart(chartCanvas, {
+                type: 'radar',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: defaultOptions
+            });
         }
 
-        function createPlayerTag(player, index) {
-            const color = getPlayerColor(index);
-            return `
-                <div class="player-tag" style="background-color: ${color}20; border-color: ${color}">
-                    ${player.playername}
-                    <span class="position">${player.position} - ${player.team}</span>
-                    <button onclick="removePlayer('${player.playername}')" class="remove-btn">×</button>
-                </div>
-            `;
-        }
-
-        function getPlayerColor(index) {
-            // Fixed colors for consistent mapping
-            const colors = [
-                '#ff4444', // Red
-                '#00c3ff', // Blue
-                '#44ff44', // Green
-                '#ff44ff', // Purple
-                '#ffff44'  // Yellow
-            ];
-            return colors[index % colors.length];
-        }
+        // Initialize the chart when the page loads
+        document.addEventListener('DOMContentLoaded', initializeChart);
 
         async function fetchPlayerStats(player) {
             try {
@@ -234,15 +222,18 @@
 
         function updateChart() {
             console.log('Updating chart with players:', selectedPlayers);
-            const chartCanvas = document.getElementById('statsChart');
-            if (!chartCanvas) {
-                console.error('Chart canvas not found');
+            if (!statsChart) {
+                console.error('Chart not initialized');
                 return;
             }
 
             const firstPlayer = selectedPlayers[0];
             if (!firstPlayer) {
                 console.log('No players selected');
+                // Clear the chart
+                statsChart.data.labels = [];
+                statsChart.data.datasets = [];
+                statsChart.update();
                 return;
             }
 
@@ -255,7 +246,7 @@
 
             console.log('Using config:', config);
 
-            const data = {
+            statsChart.data = {
                 labels: config.labels,
                 datasets: selectedPlayers.map((player, index) => {
                     const color = getPlayerColor(index);
@@ -283,40 +274,16 @@
                         pointBackgroundColor: color,
                         pointBorderColor: '#fff',
                         pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: color
+                        pointHoverBorderColor: color,
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
                     };
                 })
             };
 
-            const options = {
-                scales: {
-                    r: {
-                        angleLines: {
-                            display: true
-                        },
-                        suggestedMin: 0,
-                        suggestedMax: 100,
-                        beginAtZero: true
-                    }
-                },
-                plugins: {
-                    legend: {
-                        position: 'top'
-                    }
-                },
-                responsive: true,
-                maintainAspectRatio: false
-            };
-
-            if (window.statsChart) {
-                window.statsChart.destroy();
-            }
-
-            window.statsChart = new Chart(chartCanvas, {
-                type: 'radar',
-                data: data,
-                options: options
-            });
+            // Update the chart
+            statsChart.update();
         }
 
         // Search functionality
@@ -373,6 +340,88 @@
         // Event listeners
         searchInput.addEventListener('input', debouncedSearch);
         positionFilter.addEventListener('change', handleSearch);
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function createPlayerTag(player, index) {
+            const color = getPlayerColor(index);
+            return `
+                <div class="player-tag" style="background-color: ${color}20; border-color: ${color}">
+                    ${player.playername}
+                    <span class="position">${player.position} - ${player.team}</span>
+                    <button onclick="removePlayer('${player.playername}')" class="remove-btn">×</button>
+                </div>
+            `;
+        }
+
+        function getPlayerColor(index) {
+            // Fixed colors for consistent mapping
+            const colors = [
+                '#ff4444', // Red
+                '#00c3ff', // Blue
+                '#44ff44', // Green
+                '#ff44ff', // Purple
+                '#ffff44'  // Yellow
+            ];
+            return colors[index % colors.length];
+        }
+
+        async function searchPlayers(query, position) {
+            try {
+                // Don't search if query is too short
+                if (query.length < 2) {
+                    return [];
+                }
+
+                const apiUrl = `https://nfl-stats-api-2024-b3f5cb494117.herokuapp.com/api/search?name=${encodeURIComponent(query)}&position=${position}`;
+                console.log(`Making API request to: ${apiUrl}`);
+                console.log(`Search query: "${query}", Position: "${position}"`);
+                
+                const response = await fetch(apiUrl);
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`HTTP error! status: ${response.status}`);
+                    console.error('Error response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const players = await response.json();
+                console.log(`Found ${players.length} players:`, players);
+
+                // Filter and limit to top 5 matches
+                const filteredPlayers = players
+                    .filter(player => {
+                        if (!player.playername) {
+                            console.log('Player missing name:', player);
+                            return false;
+                        }
+                        const match = player.playername.toLowerCase().includes(query.toLowerCase());
+                        if (match) {
+                            console.log('Found matching player:', player.playername);
+                        }
+                        return match;
+                    })
+                    .slice(0, 5);
+
+                console.log(`Returning ${filteredPlayers.length} matching players:`, filteredPlayers);
+                return filteredPlayers;
+            } catch (error) {
+                console.error('Error searching players:', error);
+                throw error;
+            }
+        }
     </script>
 </body>
 </html>
