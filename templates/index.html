@@ -239,11 +239,11 @@
                 labels: config.labels,
                 datasets: selectedPlayers.map((player, index) => {
                     const color = getPlayerColor(index);
-                    const stats = player.stats || {}; // Handle nested stats
+                    const stats = player.stats || player; // Use player object directly if stats not nested
                     
                     // Map the stats based on position configuration
                     const values = config.stats.map(stat => {
-                        const value = stats[stat] || 0;
+                        const value = parseFloat(stats[stat] || 0);
                         // For inverted stats (like interceptions), invert the normalized value
                         const maxValue = config.maxValues[config.stats.indexOf(stat)];
                         const normalizedValue = (value / maxValue) * 100;
@@ -255,12 +255,12 @@
                     return {
                         label: player.playername,
                         data: values,
-                        backgroundColor: `rgba(${color}, 0.2)`,
-                        borderColor: `rgba(${color}, 1)`,
-                        pointBackgroundColor: `rgba(${color}, 1)`,
+                        backgroundColor: `${color}20`,
+                        borderColor: color,
+                        pointBackgroundColor: color,
                         pointBorderColor: '#fff',
                         pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: `rgba(${color}, 1)`
+                        pointHoverBorderColor: color
                     };
                 })
             };

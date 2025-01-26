@@ -311,25 +311,18 @@ def get_team_players(team_code):
 def get_player_stats(playerid):
     """Get stats for a specific player"""
     try:
-        # First, get the player's position
-        player_data = make_api_request(f'/api/search?playerid={playerid}')
-        if not player_data or not isinstance(player_data, list) or len(player_data) == 0:
-            return jsonify({'error': 'Player not found'}), 404
-            
-        player = player_data[0]
-        position = player.get('position')
-        
-        # Then get all players for that position to find this player's stats
-        all_players = make_api_request(f'/api/players/{position}')
-        if not all_players:
-            return jsonify({'error': 'Failed to fetch player stats'}), 500
-            
-        # Find this player's stats
-        player_stats = next((p for p in all_players if p.get('playerid') == playerid), None)
-        if not player_stats:
-            return jsonify({'error': 'Player stats not found'}), 404
-            
-        return jsonify(player_stats)
+        # Get all players for each position until we find the one we want
+        for position in VALID_POSITIONS:
+            all_players = make_api_request(f'/api/players/{position}')
+            if not all_players:
+                continue
+                
+            # Find this player's stats
+            player_stats = next((p for p in all_players if p.get('playerid') == playerid), None)
+            if player_stats:
+                return jsonify(player_stats)
+                
+        return jsonify({'error': 'Player stats not found'}), 404
     except Exception as e:
         logger.error(f"Error in get_player_stats: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
