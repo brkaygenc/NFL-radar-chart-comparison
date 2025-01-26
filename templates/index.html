@@ -97,7 +97,7 @@
                 div.innerHTML = `
                     <div class="player-info">
                         <div class="player-name">${player.playername}</div>
-                        <div class="player-details">${player.team} • ${player.position}</div>
+                        <div class="player-details">${player.team} • ${player.position || 'N/A'}</div>
                     </div>
                     <button class="add-btn" onclick="addPlayer(${JSON.stringify(player).replace(/"/g, '&quot;')})">
                         Add to Compare
@@ -137,7 +137,7 @@
             selectedPlayersDiv.innerHTML = selectedPlayersData
                 .map((player, index) => `
                     <div class="player-tag" style="background: ${COLORS[index].background}; border-color: ${COLORS[index].border}">
-                        <span>${player.playername} ${player.position} • ${player.team}</span>
+                        <span>${player.playername} • ${player.team} • ${player.position || 'N/A'}</span>
                         <button class="remove-btn" onclick="removePlayer('${player.playerid}')">&times;</button>
                     </div>
                 `).join('');
