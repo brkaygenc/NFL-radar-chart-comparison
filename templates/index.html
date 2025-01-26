@@ -1,50 +1,62 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFL Stats Visualizer</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>NFL Player Stats Comparison</title>
+    <link rel="stylesheet" href="/static/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
         <h1>NFL PLAYER STATS COMPARISON</h1>
+        
         <div class="search-section">
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="Search for a player...">
                 <select id="positionFilter">
                     <option value="QB">QB</option>
-                    <option value="WR">WR</option>
                     <option value="RB">RB</option>
+                    <option value="WR">WR</option>
                     <option value="TE">TE</option>
                     <option value="K">K</option>
-                    <option value="LB">LB</option>
-                    <option value="DB">DB</option>
-                    <option value="DL">DL</option>
                 </select>
                 <button class="search-btn">SEARCH</button>
             </div>
+            
             <div id="searchResults" class="search-results"></div>
         </div>
 
-        <div class="player-tags">
-            <!-- Player comparison tags will be displayed here -->
-        </div>
-
+        <div id="selectedPlayers" class="player-tags"></div>
+        
         <div class="charts-container">
             <canvas id="statsChart"></canvas>
         </div>
     </div>
 
     <script>
-        let chart = null;
         const searchInput = document.getElementById('searchInput');
         const positionFilter = document.getElementById('positionFilter');
         const searchResults = document.getElementById('searchResults');
+        const selectedPlayersDiv = document.getElementById('selectedPlayers');
         const selectedPlayers = new Set();
-        let selectedPlayersData = [];
-        
+        const selectedPlayersData = [];
+        let chart = null;
+
+        const COLORS = [
+            { border: '#ff4d4d', background: 'rgba(255, 77, 77, 0.2)' },
+            { border: '#4da6ff', background: 'rgba(77, 166, 255, 0.2)' },
+            { border: '#4dff4d', background: 'rgba(77, 255, 77, 0.2)' },
+            { border: '#ffff4d', background: 'rgba(255, 255, 77, 0.2)' },
+            { border: '#ff4dff', background: 'rgba(255, 77, 255, 0.2)' }
+        ];
+
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                handleSearch();
+            }
+        });
+
+        document.querySelector('.search-btn').addEventListener('click', handleSearch);
+
         async function handleSearch() {
             const query = searchInput.value.trim();
             const position = positionFilter.value;
@@ -56,12 +68,10 @@
             
             try {
                 const response = await fetch(`/api/search?name=${encodeURIComponent(query)}&position=${encodeURIComponent(position)}`);
-                const data = await response.json();
-                
-                if (data.error) {
-                    throw new Error(data.error);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch players');
                 }
-                
+                const data = await response.json();
                 displaySearchResults(data);
             } catch (error) {
                 searchResults.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
@@ -77,9 +87,14 @@
             searchResults.innerHTML = players
                 .filter(player => !selectedPlayers.has(player.playerid))
                 .map(player => `
-                    <div class="player-card" onclick="addPlayer(${JSON.stringify(player).replace(/"/g, '&quot;')})">
-                        <div class="player-name">${player.playername}</div>
-                        <div class="player-team">${player.team}</div>
+                    <div class="player-card">
+                        <div class="player-info">
+                            <div class="player-name">${player.playername}</div>
+                            <div class="player-details">${positionFilter.value} • ${player.team}</div>
+                        </div>
+                        <button class="add-btn" onclick="addPlayer(${JSON.stringify(player).replace(/"/g, '&quot;')})">
+                            Add to Compare
+                        </button>
                     </div>
                 `).join('');
         }
@@ -101,20 +116,49 @@
 
         function removePlayer(playerId) {
             selectedPlayers.delete(playerId);
-            selectedPlayersData = selectedPlayersData.filter(p => p.playerid !== playerId);
+            const index = selectedPlayersData.findIndex(p => p.playerid === playerId);
+            if (index > -1) {
+                selectedPlayersData.splice(index, 1);
+            }
             updateChart();
             updateSelectedPlayersList();
         }
 
         function updateSelectedPlayersList() {
-            const playerTags = document.querySelector('.player-tags');
-            playerTags.innerHTML = selectedPlayersData.map((player, index) => `
-                <div class="player-tag" style="border-color: ${getColor(index)}">
-                    <span class="player-name">${player.playername}</span>
-                    <span class="player-position">${player.position}</span>
-                    <button onclick="removePlayer('${player.playerid}')" class="remove-btn">×</button>
-                </div>
-            `).join('');
+            selectedPlayersDiv.innerHTML = selectedPlayersData
+                .map((player, index) => `
+                    <div class="player-tag" style="background: ${COLORS[index].background}; border-color: ${COLORS[index].border}">
+                        <span>${player.playername} ${positionFilter.value} • ${player.team}</span>
+                        <button class="remove-btn" onclick="removePlayer('${player.playerid}')">&times;</button>
+                    </div>
+                `).join('');
+        }
+
+        function getPlayerStats(player) {
+            if (positionFilter.value === 'K') {
+                return {
+                    labels: ['Field Goals', 'FG Attempts', 'Extra Points', 'XP Attempts', 'Total Points'],
+                    data: [
+                        player.fieldgoals || 0,
+                        player.fgattempts || 0,
+                        player.extrapoints || 0,
+                        player.xpattempts || 0,
+                        player.totalpoints || 0
+                    ]
+                };
+            }
+            
+            // For other positions (QB, RB, WR, TE)
+            return {
+                labels: ['Total Yards', 'Touchdowns', 'Receptions', 'Targets', 'Total Points'],
+                data: [
+                    (player.passingyards || 0) + (player.rushingyards || 0) + (player.receivingyards || 0),
+                    (player.passingtds || 0) + (player.rushingtds || 0) + (player.receivingtds || 0),
+                    player.receptions || 0,
+                    player.targets || 0,
+                    player.totalpoints || 0
+                ]
+            };
         }
 
         function updateChart() {
@@ -126,22 +170,25 @@
                 return;
             }
 
+            const firstPlayer = selectedPlayersData[0];
+            const stats = getPlayerStats(firstPlayer);
             const ctx = document.getElementById('statsChart').getContext('2d');
             
-            const datasets = selectedPlayersData.map((player, index) => ({
-                label: player.playername,
-                data: [
-                    parseFloat(player.passingyards || 0) / 100, // Scale down for better visualization
-                    parseFloat(player.passingtds || 0) * 10,    // Scale up for better visualization
-                    parseFloat(player.rushingyards || 0) / 10,   // Scale down for better visualization
-                    parseFloat(player.rushingtds || 0) * 10,     // Scale up for better visualization
-                    parseFloat(player.interceptions || 0) * -5,   // Negative impact
-                    parseFloat(player.totalpoints || 0)
-                ],
-                borderColor: getColor(index),
-                backgroundColor: getColor(index, 0.2),
-                fill: true
-            }));
+            const datasets = selectedPlayersData.map((player, index) => {
+                const playerStats = getPlayerStats(player);
+                return {
+                    label: player.playername,
+                    data: playerStats.data,
+                    borderColor: COLORS[index].border,
+                    backgroundColor: COLORS[index].background,
+                    borderWidth: 2,
+                    pointBackgroundColor: COLORS[index].border,
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: COLORS[index].border,
+                    fill: true
+                };
+            });
 
             if (chart) {
                 chart.destroy();
@@ -150,69 +197,42 @@
             chart = new Chart(ctx, {
                 type: 'radar',
                 data: {
-                    labels: [
-                        'Passing Yards (÷100)',
-                        'Passing TDs (×10)',
-                        'Rushing Yards (÷10)',
-                        'Rushing TDs (×10)',
-                        'Interceptions (×-5)',
-                        'Total Points'
-                    ],
+                    labels: stats.labels,
                     datasets: datasets
                 },
                 options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
                     scales: {
                         r: {
                             beginAtZero: true,
-                            min: -50,
-                            max: 500,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            angleLines: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            pointLabels: {
+                                color: '#fff'
+                            },
                             ticks: {
-                                stepSize: 100
+                                color: '#fff',
+                                backdropColor: 'transparent'
                             }
                         }
                     },
                     plugins: {
                         legend: {
-                            position: 'top',
+                            position: 'bottom',
                             labels: {
-                                color: '#f9f9f9'
+                                color: '#fff',
+                                padding: 20,
+                                usePointStyle: true
                             }
                         }
                     }
                 }
             });
-        }
-
-        function getColor(index, alpha = 1) {
-            const colors = [
-                `rgba(255, 99, 132, ${alpha})`,
-                `rgba(54, 162, 235, ${alpha})`,
-                `rgba(255, 206, 86, ${alpha})`,
-                `rgba(75, 192, 192, ${alpha})`,
-                `rgba(153, 102, 255, ${alpha})`
-            ];
-            return colors[index % colors.length];
-        }
-
-        // Event listeners
-        document.querySelector('.search-btn').addEventListener('click', handleSearch);
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleSearch();
-            }
-        });
-
-        // Debounce function
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
         }
     </script>
 </body>
