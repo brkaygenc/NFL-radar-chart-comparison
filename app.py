@@ -312,7 +312,24 @@ def get_player_stats(playerid):
     """Get stats for a specific player"""
     try:
         logger.info(f"Fetching stats for player ID: {playerid}")
-        # Get all players for each position until we find the one we want
+        
+        # First try to get the player's position from search
+        search_response = make_api_request(f'/api/search?name={playerid}')
+        if search_response and isinstance(search_response, list) and len(search_response) > 0:
+            player = search_response[0]
+            position = player.get('position')
+            if position:
+                logger.info(f"Found player position from search: {position}")
+                all_players = make_api_request(f'/api/players/{position}')
+                if all_players:
+                    # Find this player's stats
+                    player_stats = next((p for p in all_players if str(p.get('playerid')) == str(playerid)), None)
+                    if player_stats:
+                        logger.info(f"Found stats for player {playerid} in position {position}")
+                        return jsonify(player_stats)
+        
+        # If not found or no position, try all positions
+        logger.info("Player not found in search results, trying all positions")
         for position in VALID_POSITIONS:
             logger.info(f"Checking position {position}")
             all_players = make_api_request(f'/api/players/{position}')
@@ -324,7 +341,6 @@ def get_player_stats(playerid):
             player_stats = next((p for p in all_players if str(p.get('playerid')) == str(playerid)), None)
             if player_stats:
                 logger.info(f"Found stats for player {playerid} in position {position}")
-                logger.debug(f"Stats: {player_stats}")
                 return jsonify(player_stats)
                 
         logger.warning(f"Player stats not found for ID {playerid} in any position")
