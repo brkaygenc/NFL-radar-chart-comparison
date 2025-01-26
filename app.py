@@ -220,6 +220,66 @@ def convert_to_xml(data):
     xml_str = ET.tostring(root, encoding='unicode')
     return minidom.parseString(xml_str).toprettyxml(indent="  ")
 
+import os
+from lxml import etree
+
+# Load XSD schema
+XSD_PATH = os.path.join(os.path.dirname(__file__), 'static', 'player_stats.xsd')
+try:
+    with open(XSD_PATH, 'rb') as f:
+        xsd_doc = etree.parse(f)
+        xsd_schema = etree.XMLSchema(xsd_doc)
+    logger.info("XSD schema loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading XSD schema: {str(e)}")
+    xsd_schema = None
+
+def json_to_xml(player_data):
+    """Convert player stats from JSON to XML format"""
+    # Create root element
+    players = ET.Element('players')
+    
+    # Create player element
+    player = ET.SubElement(players, 'player', {'id': str(player_data.get('playerid', ''))})
+    
+    # Add basic info
+    ET.SubElement(player, 'name').text = player_data.get('playername', '')
+    ET.SubElement(player, 'position').text = player_data.get('position', '')
+    ET.SubElement(player, 'team').text = player_data.get('team', '')
+    
+    # Add stats
+    stats = [
+        'passing_yards', 'passing_touchdowns', 'interceptions',
+        'rushing_yards', 'rushing_touchdowns',
+        'receptions', 'receiving_yards', 'receiving_touchdowns', 'targets',
+        'tackles', 'sacks', 'tackles_for_loss', 'passes_defended', 'forced_fumbles',
+        'fieldgoals', 'fieldgoal_attempts', 'extrapoints', 'extrapoint_attempts',
+        'total_points'
+    ]
+    
+    for stat in stats:
+        value = player_data.get(stat, '0')
+        ET.SubElement(player, stat).text = str(value)
+    
+    return ET.tostring(players, encoding='unicode', method='xml')
+
+def validate_xml(xml_string):
+    """Validate XML against XSD schema"""
+    if not xsd_schema:
+        logger.warning("XSD schema not loaded, skipping validation")
+        return True
+        
+    try:
+        xml_doc = etree.fromstring(xml_string.encode())
+        xsd_schema.assertValid(xml_doc)
+        return True
+    except etree.DocumentInvalid as e:
+        logger.error(f"XML validation failed: {str(e)}")
+        return False
+    except Exception as e:
+        logger.error(f"Error during XML validation: {str(e)}")
+        return False
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -338,34 +398,22 @@ def get_player_stats(playerid):
             logger.warning(f"Stats not found for player {playerid} in position {position}")
             return jsonify({'error': 'Player stats not found'}), 404
 
-        # Map stats according to XSD schema
-        mapped_stats = {
-            'name': player_stats.get('playername'),
-            'position': position,
-            'team': player_stats.get('team'),
-            'passing_yards': player_stats.get('passing_yards', 0),
-            'passing_touchdowns': player_stats.get('passing_touchdowns', 0),
-            'interceptions': player_stats.get('interceptions', 0),
-            'rushing_yards': player_stats.get('rushing_yards', 0),
-            'rushing_touchdowns': player_stats.get('rushing_touchdowns', 0),
-            'receptions': player_stats.get('receptions', 0),
-            'receiving_yards': player_stats.get('receiving_yards', 0),
-            'receiving_touchdowns': player_stats.get('receiving_touchdowns', 0),
-            'targets': player_stats.get('targets', 0),
-            'tackles': player_stats.get('total_tackles', 0),
-            'sacks': player_stats.get('sacks', 0),
-            'tackles_for_loss': player_stats.get('tackles_for_loss', 0),
-            'passes_defended': player_stats.get('passes_defended', 0),
-            'forced_fumbles': player_stats.get('forced_fumbles', 0),
-            'fieldgoals': player_stats.get('field_goals_made', 0),
-            'fieldgoal_attempts': player_stats.get('field_goals_attempted', 0),
-            'extrapoints': player_stats.get('extra_points_made', 0),
-            'extrapoint_attempts': player_stats.get('extra_points_attempted', 0),
-            'total_points': player_stats.get('total_points', 0)
-        }
+        # Convert to XML
+        xml_data = json_to_xml(player_stats)
+        
+        # Validate XML
+        if not validate_xml(xml_data):
+            logger.error("XML validation failed")
+            return jsonify({'error': 'Invalid player data format'}), 500
 
-        logger.info(f"Mapped stats for player {playerid}: {mapped_stats}")
-        return jsonify(mapped_stats)
+        # Set XML response headers
+        response = app.response_class(
+            response=xml_data,
+            status=200,
+            mimetype='application/xml'
+        )
+        return response
+
     except Exception as e:
         logger.error(f"Error in get_player_stats: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500

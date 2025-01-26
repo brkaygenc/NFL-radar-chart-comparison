@@ -51,34 +51,43 @@
             'QB': {
                 stats: ['passing_yards', 'passing_touchdowns', 'rushing_yards', 'interceptions'],
                 labels: ['Passing Yards', 'Passing TDs', 'Rushing Yards', 'INTs'],
+                maxValues: [5000, 50, 1000, 20],
+                invertedStats: ['interceptions']
             },
             'RB': {
                 stats: ['rushing_yards', 'rushing_touchdowns', 'receiving_yards', 'receptions'],
                 labels: ['Rushing Yards', 'Rushing TDs', 'Receiving Yards', 'Receptions'],
+                maxValues: [2000, 20, 1000, 100]
             },
             'WR': {
                 stats: ['receiving_yards', 'receiving_touchdowns', 'receptions', 'targets'],
                 labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets'],
+                maxValues: [2000, 20, 120, 180]
             },
             'TE': {
                 stats: ['receiving_yards', 'receiving_touchdowns', 'receptions', 'targets'],
                 labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets'],
+                maxValues: [1500, 15, 100, 150]
             },
             'K': {
                 stats: ['fieldgoals', 'fieldgoal_attempts', 'extrapoints', 'extrapoint_attempts'],
                 labels: ['Field Goals', 'FG Attempts', 'Extra Points', 'XP Attempts'],
+                maxValues: [40, 45, 60, 65]
             },
             'LB': {
                 stats: ['tackles', 'sacks', 'tackles_for_loss', 'forced_fumbles'],
                 labels: ['Tackles', 'Sacks', 'TFL', 'Forced Fumbles'],
+                maxValues: [150, 15, 25, 5]
             },
             'DB': {
                 stats: ['tackles', 'interceptions', 'passes_defended', 'forced_fumbles'],
                 labels: ['Tackles', 'Interceptions', 'Passes Defended', 'Forced Fumbles'],
+                maxValues: [120, 10, 25, 5]
             },
             'DL': {
                 stats: ['tackles', 'sacks', 'tackles_for_loss', 'forced_fumbles'],
                 labels: ['Tackles', 'Sacks', 'TFL', 'Forced Fumbles'],
+                maxValues: [100, 20, 25, 5]
             }
         };
 
@@ -153,8 +162,33 @@
                 if (!response.ok) {
                     throw new Error('Failed to fetch player stats');
                 }
-                const stats = await response.json();
-                console.log('Received stats:', stats);
+                
+                // Parse XML response
+                const xmlText = await response.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+                
+                // Convert XML to object
+                const playerNode = xmlDoc.querySelector('player');
+                if (!playerNode) {
+                    throw new Error('Invalid XML format');
+                }
+                
+                const stats = {
+                    playername: playerNode.querySelector('name')?.textContent,
+                    position: playerNode.querySelector('position')?.textContent,
+                    team: playerNode.querySelector('team')?.textContent
+                };
+                
+                // Add all stat values
+                const statNodes = playerNode.children;
+                for (let node of statNodes) {
+                    if (node.tagName !== 'name' && node.tagName !== 'position' && node.tagName !== 'team') {
+                        stats[node.tagName] = parseFloat(node.textContent) || 0;
+                    }
+                }
+                
+                console.log('Parsed stats:', stats);
                 return stats;
             } catch (error) {
                 console.error(`Error fetching stats for ${player.playername}:`, error);
@@ -196,9 +230,13 @@
                 labels: config.labels,
                 datasets: selectedPlayers.map((player, index) => {
                     const color = getPlayerColor(index);
-                    const values = config.stats.map(stat => {
+                    const values = config.stats.map((stat, i) => {
                         const value = parseFloat(player[stat] || 0);
-                        return value;
+                        const maxValue = config.maxValues[i];
+                        const normalizedValue = (value / maxValue) * 100;
+                        return config.invertedStats && config.invertedStats.includes(stat)
+                            ? 100 - normalizedValue
+                            : normalizedValue;
                     });
 
                     return {
