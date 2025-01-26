@@ -278,25 +278,61 @@ def search_players():
         # If position is specified, get players for that position
         if position:
             url = f"{API_BASE_URL}/api/players/{position}"
-            players = requests.get(url).json()
+            response = requests.get(url)
+            if not response.ok:
+                logger.error(f"API request failed: {response.status_code} - {response.text}")
+                return jsonify({'error': 'Failed to fetch players from API'}), response.status_code
+                
+            try:
+                players = response.json()
+            except ValueError as e:
+                logger.error(f"Failed to parse API response: {str(e)}")
+                return jsonify({'error': 'Invalid response from API'}), 500
+                
             # Filter by name
             players = [p for p in players if name.lower() in p['playername'].lower()]
         else:
             # Get all positions and search through each
             positions_url = f"{API_BASE_URL}/api/players/positions"
-            positions = requests.get(positions_url).json()
+            response = requests.get(positions_url)
+            if not response.ok:
+                logger.error(f"API request failed: {response.status_code} - {response.text}")
+                return jsonify({'error': 'Failed to fetch positions from API'}), response.status_code
+                
+            try:
+                positions = response.json()
+            except ValueError as e:
+                logger.error(f"Failed to parse API response: {str(e)}")
+                return jsonify({'error': 'Invalid response from API'}), 500
+                
             players = []
             for pos in positions:
                 url = f"{API_BASE_URL}/api/players/{pos}"
-                pos_players = requests.get(url).json()
-                players.extend([p for p in pos_players if name.lower() in p['playername'].lower()])
+                response = requests.get(url)
+                if response.ok:
+                    try:
+                        pos_players = response.json()
+                        players.extend([p for p in pos_players if name.lower() in p['playername'].lower()])
+                    except ValueError:
+                        logger.warning(f"Failed to parse response for position {pos}")
+                        continue
+                else:
+                    logger.warning(f"Failed to fetch players for position {pos}")
+                    continue
         
+        if not players:
+            return jsonify([])
+            
+        # Convert string values to float for sorting
+        for player in players:
+            player['totalpoints'] = float(player.get('totalpoints', 0))
+            
         # Sort by total points
-        players.sort(key=lambda x: float(x['totalpoints']), reverse=True)
+        players.sort(key=lambda x: x['totalpoints'], reverse=True)
         return jsonify(players)
         
     except Exception as e:
-        logger.error(f"Error in search_players: {str(e)}")
+        logger.error(f"Error in search_players: {str(e)}", exc_info=True)
         return jsonify({'error': 'Failed to search players', 'message': str(e)}), 500
 
 @app.route('/api/players/<position>')
