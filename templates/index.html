@@ -117,13 +117,13 @@
                 // Filter and limit to top 5 matches
                 const filteredPlayers = players
                     .filter(player => {
-                        if (!player.name) {
+                        if (!player.playername) {
                             console.log('Player missing name:', player);
                             return false;
                         }
-                        const match = player.name.toLowerCase().includes(query.toLowerCase());
+                        const match = player.playername.toLowerCase().includes(query.toLowerCase());
                         if (match) {
-                            console.log('Found matching player:', player.name);
+                            console.log('Found matching player:', player.playername);
                         }
                         return match;
                     })
@@ -154,9 +154,9 @@
             const color = getPlayerColor(index);
             return `
                 <div class="player-tag" style="background-color: ${color}20; border-color: ${color}">
-                    ${player.name}
+                    ${player.playername}
                     <span class="position">${player.position} - ${player.team}</span>
-                    <button onclick="removePlayer('${player.name}')" class="remove-btn">×</button>
+                    <button onclick="removePlayer('${player.playername}')" class="remove-btn">×</button>
                 </div>
             `;
         }
@@ -178,7 +178,7 @@
                 alert('You can only compare up to 5 players');
                 return;
             }
-            if (selectedPlayers.some(p => p.name === player.name)) {
+            if (selectedPlayers.some(p => p.playername === player.playername)) {
                 return;
             }
             selectedPlayers.push(player);
@@ -187,7 +187,7 @@
         }
 
         function removePlayer(playerName) {
-            const index = selectedPlayers.findIndex(p => p.name === playerName);
+            const index = selectedPlayers.findIndex(p => p.playername === playerName);
             if (index !== -1) {
                 selectedPlayers.splice(index, 1);
                 updatePlayerTags();
@@ -231,7 +231,7 @@
                     });
 
                     return {
-                        label: player.name,
+                        label: player.playername,
                         data: values,
                         backgroundColor: `rgba(${color}, 0.2)`,
                         borderColor: `rgba(${color}, 1)`,
@@ -300,9 +300,13 @@
             
             resultsContainer.innerHTML = players.map(player => `
                 <div class="player-card">
-                    <h3>${player.name}</h3>
+                    <h3>${player.playername}</h3>
                     <p>${player.position} - ${player.team}</p>
-                    <button class="add-btn" onclick='addPlayer(${JSON.stringify(player).replace(/'/g, "\\'")})'">
+                    <button class="add-btn" onclick='addPlayer({
+                        "playername": "${player.playername}",
+                        "position": "${player.position}",
+                        "team": "${player.team}"
+                    })'>
                         ADD TO COMPARE
                     </button>
                 </div>
