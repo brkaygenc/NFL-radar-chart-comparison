@@ -23,7 +23,7 @@
                     <option value="DB">DB</option>
                     <option value="DL">DL</option>
                 </select>
-                <button onclick="handleSearch()" class="search-btn">Search</button>
+                <button class="search-btn">SEARCH</button>
             </div>
             <div id="searchResults" class="search-results"></div>
         </div>
@@ -43,6 +43,7 @@
         const positionFilter = document.getElementById('positionFilter');
         const searchResults = document.getElementById('searchResults');
         const selectedPlayers = new Set();
+        let selectedPlayersData = [];
         
         async function handleSearch() {
             const query = searchInput.value.trim();
@@ -77,14 +78,12 @@
             searchResults.innerHTML = players
                 .filter(player => !selectedPlayers.has(player.playerid))
                 .map(player => `
-                    <div class="player-card" onclick="addPlayer(${JSON.stringify(player)})">
+                    <div class="player-card" onclick="addPlayer(${JSON.stringify(player).replace(/"/g, '&quot;')})">
                         <div class="player-info">
                             <span class="player-name">${player.playername}</span>
                             <span class="player-details">${player.position} | ${player.team}</span>
                         </div>
                         <div class="player-stats">
-                            <span>Pass TDs: ${player.passingtds}</span>
-                            <span>Rush TDs: ${player.rushingtds}</span>
                             <span>Total Points: ${player.totalpoints}</span>
                         </div>
                     </div>
@@ -102,25 +101,51 @@
             }
             
             selectedPlayers.add(player.playerid);
-            updateChart([...selectedPlayers].map(id => 
-                document.querySelector(`[data-playerid="${id}"]`).dataset.player
-            ));
+            selectedPlayersData.push(player);
+            updateChart();
+            updateSelectedPlayersList();
             searchResults.innerHTML = '';
             searchInput.value = '';
         }
 
-        function updateChart(players) {
+        function removePlayer(playerId) {
+            selectedPlayers.delete(playerId);
+            selectedPlayersData = selectedPlayersData.filter(p => p.playerid !== playerId);
+            updateChart();
+            updateSelectedPlayersList();
+        }
+
+        function updateSelectedPlayersList() {
+            const playerTags = document.querySelector('.player-tags');
+            playerTags.innerHTML = selectedPlayersData.map((player, index) => `
+                <div class="player-tag" style="border-color: ${getColor(index)}">
+                    <span class="player-name">${player.playername}</span>
+                    <span class="player-position">${player.position}</span>
+                    <button onclick="removePlayer('${player.playerid}')" class="remove-btn">×</button>
+                </div>
+            `).join('');
+        }
+
+        function updateChart() {
+            if (selectedPlayersData.length === 0) {
+                if (chart) {
+                    chart.destroy();
+                    chart = null;
+                }
+                return;
+            }
+
             const ctx = document.getElementById('statsChart').getContext('2d');
             
-            const datasets = players.map((player, index) => ({
+            const datasets = selectedPlayersData.map((player, index) => ({
                 label: player.playername,
                 data: [
-                    player.passingyards / 100, // Scale down for better visualization
-                    player.passingtds * 10,    // Scale up for better visualization
-                    player.rushingyards / 10,   // Scale down for better visualization
-                    player.rushingtds * 10,     // Scale up for better visualization
-                    player.interceptions * -5,   // Negative impact
-                    player.totalpoints
+                    parseFloat(player.passingyards || 0) / 100, // Scale down for better visualization
+                    parseFloat(player.passingtds || 0) * 10,    // Scale up for better visualization
+                    parseFloat(player.rushingyards || 0) / 10,   // Scale down for better visualization
+                    parseFloat(player.rushingtds || 0) * 10,     // Scale up for better visualization
+                    parseFloat(player.interceptions || 0) * -5,   // Negative impact
+                    parseFloat(player.totalpoints || 0)
                 ],
                 borderColor: getColor(index),
                 backgroundColor: getColor(index, 0.2),
@@ -149,12 +174,18 @@
                         r: {
                             beginAtZero: true,
                             min: -50,
-                            max: 500
+                            max: 500,
+                            ticks: {
+                                stepSize: 100
+                            }
                         }
                     },
                     plugins: {
                         legend: {
-                            position: 'top'
+                            position: 'top',
+                            labels: {
+                                color: '#f9f9f9'
+                            }
                         }
                     }
                 }
@@ -172,11 +203,15 @@
             return colors[index % colors.length];
         }
 
-        // Debounce the search to avoid too many API calls
-        const debouncedSearch = debounce(handleSearch, 300);
-        searchInput.addEventListener('input', debouncedSearch);
-        positionFilter.addEventListener('change', debouncedSearch);
+        // Event listeners
+        document.querySelector('.search-btn').addEventListener('click', handleSearch);
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleSearch();
+            }
+        });
 
+        // Debounce function
         function debounce(func, wait) {
             let timeout;
             return function executedFunction(...args) {
