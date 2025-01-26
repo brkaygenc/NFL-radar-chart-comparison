@@ -97,7 +97,7 @@
                     return [];
                 }
 
-                const apiUrl = `https://nfl-stats-api-2024-b3f5cb494117.herokuapp.com/api/players/search?name=${encodeURIComponent(query)}&position=${position}`;
+                const apiUrl = `https://nfl-stats-api-2024-b3f5cb494117.herokuapp.com/api/search?name=${encodeURIComponent(query)}&position=${position}`;
                 console.log(`Making API request to: ${apiUrl}`);
                 console.log(`Search query: "${query}", Position: "${position}"`);
                 
