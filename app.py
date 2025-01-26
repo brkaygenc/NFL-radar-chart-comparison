@@ -250,7 +250,7 @@ def search_players():
         if position:
             search_params['position'] = position
         
-        endpoint = f"/search?{'&'.join(f'{k}={v}' for k, v in search_params.items())}"
+        endpoint = f"/api/players/search?{'&'.join(f'{k}={v}' for k, v in search_params.items())}"
         logger.info(f"Constructed search endpoint: {endpoint}")
         
         players = make_api_request(endpoint)
