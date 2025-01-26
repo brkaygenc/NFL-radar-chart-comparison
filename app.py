@@ -263,8 +263,14 @@ def search_players():
         response = requests.get(url, timeout=5)
         if response.ok:
             players = response.json()
-            players = [p for p in players if name.lower() in p['playername'].lower()]
-            return jsonify(players)
+            filtered_players = []
+            for p in players:
+                if name.lower() in p['playername'].lower():
+                    # Ensure position is set correctly
+                    if not p.get('position'):
+                        p['position'] = position if position else 'N/A'
+                    filtered_players.append(p)
+            return jsonify(filtered_players)
         else:
             return jsonify({'error': 'Failed to fetch players'}), 500
     except Exception as e:
