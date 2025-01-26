@@ -12,12 +12,18 @@
         <div class="search-section">
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="Search for a player...">
-                <select id="positionFilter">
-                    <option value="QB">QB</option>
-                    <option value="RB">RB</option>
-                    <option value="WR">WR</option>
-                    <option value="TE">TE</option>
-                    <option value="K">K</option>
+                <select id="positionFilter" class="position-filter">
+                    <optgroup label="Offense">
+                        <option value="QB">QB</option>
+                        <option value="RB">RB</option>
+                        <option value="WR">WR</option>
+                        <option value="TE">TE</option>
+                    </optgroup>
+                    <optgroup label="Defense">
+                        <option value="LB">LB</option>
+                        <option value="DB">DB</option>
+                        <option value="DL">DL</option>
+                    </optgroup>
                 </select>
                 <button class="search-btn">SEARCH</button>
             </div>
@@ -79,24 +85,26 @@
         }
 
         function displaySearchResults(players) {
-            if (!players || players.length === 0) {
+            searchResults.innerHTML = '';
+            if (players.length === 0) {
                 searchResults.innerHTML = '<div class="no-results">No players found</div>';
                 return;
             }
-            
-            searchResults.innerHTML = players
-                .filter(player => !selectedPlayers.has(player.playerid))
-                .map(player => `
-                    <div class="player-card">
-                        <div class="player-info">
-                            <div class="player-name">${player.playername}</div>
-                            <div class="player-details">${positionFilter.value} • ${player.team}</div>
-                        </div>
-                        <button class="add-btn" onclick="addPlayer(${JSON.stringify(player).replace(/"/g, '&quot;')})">
-                            Add to Compare
-                        </button>
+
+            players.forEach(player => {
+                const div = document.createElement('div');
+                div.className = 'player-card';
+                div.innerHTML = `
+                    <div class="player-info">
+                        <div class="player-name">${player.playername}</div>
+                        <div class="player-details">${player.team} • ${player.position}</div>
                     </div>
-                `).join('');
+                    <button class="add-btn" onclick="addPlayer(${JSON.stringify(player).replace(/"/g, '&quot;')})">
+                        Add to Compare
+                    </button>
+                `;
+                searchResults.appendChild(div);
+            });
         }
 
         function addPlayer(player) {
@@ -128,37 +136,67 @@
             selectedPlayersDiv.innerHTML = selectedPlayersData
                 .map((player, index) => `
                     <div class="player-tag" style="background: ${COLORS[index].background}; border-color: ${COLORS[index].border}">
-                        <span>${player.playername} ${positionFilter.value} • ${player.team}</span>
+                        <span>${player.playername} ${player.position} • ${player.team}</span>
                         <button class="remove-btn" onclick="removePlayer('${player.playerid}')">&times;</button>
                     </div>
                 `).join('');
         }
 
         function getPlayerStats(player) {
-            if (positionFilter.value === 'K') {
-                return {
-                    labels: ['Field Goals', 'FG Attempts', 'Extra Points', 'XP Attempts', 'Total Points'],
-                    data: [
-                        player.fieldgoals || 0,
-                        player.fgattempts || 0,
-                        player.extrapoints || 0,
-                        player.xpattempts || 0,
-                        player.totalpoints || 0
-                    ]
-                };
+            switch(positionFilter.value) {
+                case 'QB':
+                    return {
+                        labels: ['Passing Yards', 'Passing TDs', 'Rushing Yards', 'Rushing TDs', 'Interceptions'],
+                        data: [
+                            parseFloat(player.passingyards) || 0,
+                            parseFloat(player.passingtds) || 0,
+                            parseFloat(player.rushingyards) || 0,
+                            parseFloat(player.rushingtds) || 0,
+                            parseFloat(player.interceptions) || 0
+                        ]
+                    };
+                case 'WR':
+                case 'TE':
+                    return {
+                        labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets', 'Total Points'],
+                        data: [
+                            parseFloat(player.receivingyards) || 0,
+                            parseFloat(player.receivingtds) || 0,
+                            parseFloat(player.receptions) || 0,
+                            parseFloat(player.targets) || 0,
+                            parseFloat(player.totalpoints) || 0
+                        ]
+                    };
+                case 'RB':
+                    return {
+                        labels: ['Rushing Yards', 'Rushing TDs', 'Receptions', 'Receiving Yards', 'Total Points'],
+                        data: [
+                            parseFloat(player.rushingyards) || 0,
+                            parseFloat(player.rushingtds) || 0,
+                            parseFloat(player.receptions) || 0,
+                            parseFloat(player.receivingyards) || 0,
+                            parseFloat(player.totalpoints) || 0
+                        ]
+                    };
+                case 'LB':
+                case 'DB':
+                case 'DL':
+                    return {
+                        labels: ['Tackles', 'Sacks', 'Interceptions', 'Passes Defended', 'Total Points'],
+                        data: [
+                            parseFloat(player.tackles) || 0,
+                            parseFloat(player.sacks) || 0,
+                            parseFloat(player.interceptions) || 0,
+                            parseFloat(player.passesdefended) || 0,
+                            parseFloat(player.totalpoints) || 0
+                        ]
+                    };
+                default:
+                    return {
+                        labels: ['Total Points'],
+                        data: [parseFloat(player.totalpoints) || 0]
+                    };
             }
-            
-            // For other positions (QB, RB, WR, TE)
-            return {
-                labels: ['Total Yards', 'Touchdowns', 'Receptions', 'Targets', 'Total Points'],
-                data: [
-                    (player.passingyards || 0) + (player.rushingyards || 0) + (player.receivingyards || 0),
-                    (player.passingtds || 0) + (player.rushingtds || 0) + (player.receivingtds || 0),
-                    player.receptions || 0,
-                    player.targets || 0,
-                    player.totalpoints || 0
-                ]
-            };
         }
 
         function updateChart() {
@@ -194,6 +232,14 @@
                 chart.destroy();
             }
 
+            // Calculate max values for each stat
+            const maxValues = stats.data.map((_, statIndex) => {
+                return Math.max(...selectedPlayersData.map(p => {
+                    const playerStats = getPlayerStats(p);
+                    return playerStats.data[statIndex];
+                }));
+            });
+
             chart = new Chart(ctx, {
                 type: 'radar',
                 data: {
@@ -213,11 +259,17 @@
                                 color: 'rgba(255, 255, 255, 0.1)'
                             },
                             pointLabels: {
-                                color: '#fff'
+                                color: '#fff',
+                                font: {
+                                    size: 14
+                                }
                             },
+                            suggestedMin: 0,
+                            suggestedMax: Math.max(...maxValues),
                             ticks: {
                                 color: '#fff',
-                                backdropColor: 'transparent'
+                                backdropColor: 'transparent',
+                                stepSize: Math.ceil(Math.max(...maxValues) / 5)
                             }
                         }
                     },
