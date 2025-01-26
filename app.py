@@ -40,7 +40,7 @@ app.config['DEBUG'] = DEBUG
 
 # URLs for frontend and API
 FRONTEND_URL = 'https://nfl-stats-bd003f70104a.herokuapp.com'
-API_BASE_URL = os.getenv('NFL_API_URL', FRONTEND_URL)
+API_BASE_URL = os.getenv('NFL_API_URL', 'https://nfl-stats-api-2024-b3f5cb494117.herokuapp.com')
 
 logger.info(f"Using API base URL: {API_BASE_URL}")
 
