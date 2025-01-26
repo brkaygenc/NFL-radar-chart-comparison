@@ -12,7 +12,7 @@
         <h1>NFL PLAYER STATS COMPARISON</h1>
         <div class="search-section">
             <div class="search-box">
-                <input type="text" id="playerSearch" placeholder="Search for a player...">
+                <input type="text" id="searchInput" placeholder="Search for a player...">
                 <select id="positionFilter">
                     <option value="QB">QB</option>
                     <option value="WR">WR</option>
@@ -38,341 +38,145 @@
     </div>
 
     <script>
-        let selectedPlayers = [];
-        const maxPlayers = 5;
-        let statsChart = null;
-
-        const statsConfig = {
-            'QB': {
-                stats: ['passing_yards', 'passing_touchdowns', 'rushing_yards', 'interceptions'],
-                labels: ['Passing Yards', 'Passing TDs', 'Rushing Yards', 'INTs'],
-                maxValues: [5000, 50, 1000, 20],
-                invertedStats: ['interceptions']
-            },
-            'RB': {
-                stats: ['rushing_yards', 'rushing_touchdowns', 'receiving_yards', 'receptions'],
-                labels: ['Rushing Yards', 'Rushing TDs', 'Receiving Yards', 'Receptions'],
-                maxValues: [2000, 20, 1000, 100]
-            },
-            'WR': {
-                stats: ['receiving_yards', 'receiving_touchdowns', 'receptions', 'targets'],
-                labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets'],
-                maxValues: [2000, 20, 120, 180]
-            },
-            'TE': {
-                stats: ['receiving_yards', 'receiving_touchdowns', 'receptions', 'targets'],
-                labels: ['Receiving Yards', 'Receiving TDs', 'Receptions', 'Targets'],
-                maxValues: [1500, 15, 100, 150]
-            },
-            'K': {
-                stats: ['fieldgoals', 'fieldgoal_attempts', 'extrapoints', 'extrapoint_attempts'],
-                labels: ['Field Goals', 'FG Attempts', 'Extra Points', 'XP Attempts'],
-                maxValues: [40, 45, 60, 65]
-            },
-            'LB': {
-                stats: ['tackles', 'sacks', 'tackles_for_loss', 'forced_fumbles'],
-                labels: ['Tackles', 'Sacks', 'TFL', 'Forced Fumbles'],
-                maxValues: [150, 15, 25, 5]
-            },
-            'DB': {
-                stats: ['tackles', 'interceptions', 'passes_defended', 'forced_fumbles'],
-                labels: ['Tackles', 'Interceptions', 'Passes Defended', 'Forced Fumbles'],
-                maxValues: [120, 10, 25, 5]
-            },
-            'DL': {
-                stats: ['tackles', 'sacks', 'tackles_for_loss', 'forced_fumbles'],
-                labels: ['Tackles', 'Sacks', 'TFL', 'Forced Fumbles'],
-                maxValues: [100, 20, 25, 5]
-            }
-        };
-
-        function initializeChart() {
-            const chartCanvas = document.getElementById('statsChart');
-            if (!chartCanvas) {
-                console.error('Chart canvas not found');
-                return;
-            }
-
-            if (statsChart) {
-                statsChart.destroy();
-            }
-
-            statsChart = new Chart(chartCanvas, {
-                type: 'radar',
-                data: {
-                    labels: [],
-                    datasets: []
-                },
-                options: {
-                    scales: {
-                        r: {
-                            angleLines: {
-                                display: true,
-                                color: 'rgba(255, 255, 255, 0.2)'
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.2)'
-                            },
-                            pointLabels: {
-                                font: {
-                                    size: 14,
-                                    family: "'Arial', sans-serif"
-                                },
-                                color: '#F9F9F9'
-                            },
-                            beginAtZero: true,
-                            suggestedMin: 0,
-                            suggestedMax: 100,
-                            ticks: {
-                                stepSize: 20,
-                                font: {
-                                    size: 12
-                                },
-                                color: '#F9F9F9'
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                font: {
-                                    size: 14,
-                                    family: "'Arial', sans-serif"
-                                },
-                                color: '#F9F9F9',
-                                padding: 20
-                            }
-                        }
-                    },
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            });
-            console.log('Chart initialized:', statsChart);
-        }
-
-        // Initialize the chart when the page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('DOM loaded, initializing chart...');
-            initializeChart();
-        });
-
-        async function fetchPlayerStats(player) {
-            try {
-                console.log('Fetching stats for player:', player);
-                const response = await fetch(`/api/players/${player.playerid}/stats`);
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch player stats: ${response.status}`);
-                }
-                
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('text/xml')) {
-                    console.warn('Unexpected content type:', contentType);
-                }
-                
-                // Parse XML response
-                const xmlText = await response.text();
-                console.log('Raw XML response:', xmlText);
-                
-                if (!xmlText || xmlText.trim() === '') {
-                    throw new Error('Empty response received');
-                }
-                
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-                
-                // Check for parsing errors
-                const parserError = xmlDoc.querySelector('parsererror');
-                if (parserError) {
-                    throw new Error('XML parsing error: ' + parserError.textContent);
-                }
-                
-                // Convert XML to object
-                const playerNode = xmlDoc.querySelector('player');
-                if (!playerNode) {
-                    throw new Error('No player node found in XML');
-                }
-                
-                const stats = {
-                    playername: player.playername || playerNode.querySelector('name')?.textContent,
-                    position: player.position || playerNode.querySelector('position')?.textContent,
-                    team: playerNode.querySelector('team')?.textContent
-                };
-                
-                // Add all stat values
-                const statNodes = playerNode.children;
-                for (let node of statNodes) {
-                    if (node.tagName !== 'name' && node.tagName !== 'position' && node.tagName !== 'team') {
-                        const value = node.textContent.trim();
-                        stats[node.tagName] = value ? parseFloat(value) : 0;
-                    }
-                }
-                
-                console.log('Parsed player stats:', stats);
-                return stats;
-            } catch (error) {
-                console.error(`Error fetching stats for ${player.playername}:`, error);
-                alert(`Failed to fetch stats for ${player.playername}. Please try again.`);
-                return null;
-            }
-        }
-
-        async function addPlayer(player) {
-            if (selectedPlayers.length >= maxPlayers) {
-                alert('You can only compare up to 5 players');
-                return;
-            }
-            if (selectedPlayers.some(p => p.playername === player.playername)) {
-                return;
-            }
-
-            console.log('Adding player:', player);
-            const stats = await fetchPlayerStats(player);
-            if (stats) {
-                selectedPlayers.push({...player, ...stats});
-                updatePlayerTags();
-                updateChart();
-            }
-        }
-
-        function updateChart() {
-            if (!statsChart || selectedPlayers.length === 0) {
-                console.log('No chart or players to update');
-                return;
-            }
-
-            const firstPlayer = selectedPlayers[0];
-            const position = firstPlayer.position;
-            const config = statsConfig[position];
-            if (!config) {
-                console.error('No config found for position:', position);
-                return;
-            }
-
-            console.log('Updating chart with config:', config);
-            console.log('Selected players:', selectedPlayers);
-
-            const datasets = selectedPlayers.map((player, index) => {
-                const color = getPlayerColor(index);
-                const values = config.stats.map((stat, i) => {
-                    const value = parseFloat(player[stat] || 0);
-                    const maxValue = config.maxValues[i];
-                    const normalizedValue = (value / maxValue) * 100;
-                    return config.invertedStats && config.invertedStats.includes(stat)
-                        ? 100 - normalizedValue
-                        : normalizedValue;
-                });
-
-                return {
-                    label: player.playername,
-                    data: values,
-                    backgroundColor: `${color}20`,
-                    borderColor: color,
-                    pointBackgroundColor: color,
-                    pointBorderColor: '#fff',
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: color,
-                    borderWidth: 2,
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                };
-            });
-
-            statsChart.data = {
-                labels: config.labels,
-                datasets: datasets
-            };
-
-            console.log('Chart data updated:', statsChart.data);
-            statsChart.update('none'); // Use 'none' animation for immediate update
-        }
-
-        function getPlayerColor(index) {
-            const colors = [
-                '#ff4444', // Red
-                '#00c3ff', // Blue
-                '#44ff44', // Green
-                '#ff44ff', // Purple
-                '#ffff44'  // Yellow
-            ];
-            return colors[index % colors.length];
-        }
-
-        function updatePlayerTags() {
-            const tagsContainer = document.querySelector('.player-tags');
-            tagsContainer.innerHTML = selectedPlayers.map((player, index) => 
-                createPlayerTag(player, index)
-            ).join('');
-        }
-
-        function createPlayerTag(player, index) {
-            const color = getPlayerColor(index);
-            return `
-                <div class="player-tag" style="background-color: ${color}20; border-color: ${color}">
-                    ${player.playername}
-                    <span class="position">${player.position} - ${player.team}</span>
-                    <button onclick="removePlayer('${player.playername}')" class="remove-btn">×</button>
-                </div>
-            `;
-        }
-
-        function removePlayer(playerName) {
-            const index = selectedPlayers.findIndex(p => p.playername === playerName);
-            if (index !== -1) {
-                selectedPlayers.splice(index, 1);
-                updatePlayerTags();
-                updateChart();
-            }
-        }
-
-        // Search functionality
-        const searchInput = document.getElementById('playerSearch');
+        let chart = null;
+        const searchInput = document.getElementById('searchInput');
         const positionFilter = document.getElementById('positionFilter');
         const searchResults = document.getElementById('searchResults');
+        const selectedPlayers = new Set();
         
         async function handleSearch() {
             const query = searchInput.value.trim();
             const position = positionFilter.value;
             
-            if (query.length < 2) {
+            if (!query) {
                 searchResults.innerHTML = '';
                 return;
             }
             
             try {
-                const players = await searchPlayers(query, position);
-                displaySearchResults(players);
+                const response = await fetch(`/api/search?name=${encodeURIComponent(query)}&position=${encodeURIComponent(position)}`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to search players');
+                }
+                
+                displaySearchResults(data);
             } catch (error) {
-                console.error('Error during search:', error);
-                searchResults.innerHTML = '<div class="no-results">Error searching for players</div>';
+                console.error('Search error:', error);
+                searchResults.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
             }
         }
-        
+
         function displaySearchResults(players) {
             if (!players || players.length === 0) {
                 searchResults.innerHTML = '<div class="no-results">No players found</div>';
                 return;
             }
             
-            searchResults.innerHTML = players.map(player => `
-                <div class="player-card">
-                    <h3>${player.playername}</h3>
-                    <p>${player.position} - ${player.team}</p>
-                    <button onclick='addPlayer(${JSON.stringify(player)})' class="add-btn">
-                        Add to Compare
-                    </button>
-                </div>
-            `).join('');
+            searchResults.innerHTML = players
+                .filter(player => !selectedPlayers.has(player.playerid))
+                .map(player => `
+                    <div class="player-card" onclick="addPlayer(${JSON.stringify(player)})">
+                        <div class="player-info">
+                            <span class="player-name">${player.playername}</span>
+                            <span class="player-details">${player.position} | ${player.team}</span>
+                        </div>
+                        <div class="player-stats">
+                            <span>Pass TDs: ${player.passingtds}</span>
+                            <span>Rush TDs: ${player.rushingtds}</span>
+                            <span>Total Points: ${player.totalpoints}</span>
+                        </div>
+                    </div>
+                `).join('');
         }
-        
-        const debouncedSearch = debounce(() => handleSearch(), 300);
-        
-        // Event listeners
+
+        function addPlayer(player) {
+            if (selectedPlayers.has(player.playerid)) {
+                return;
+            }
+            
+            if (selectedPlayers.size >= 5) {
+                alert('Maximum 5 players can be compared at once');
+                return;
+            }
+            
+            selectedPlayers.add(player.playerid);
+            updateChart([...selectedPlayers].map(id => 
+                document.querySelector(`[data-playerid="${id}"]`).dataset.player
+            ));
+            searchResults.innerHTML = '';
+            searchInput.value = '';
+        }
+
+        function updateChart(players) {
+            const ctx = document.getElementById('statsChart').getContext('2d');
+            
+            const datasets = players.map((player, index) => ({
+                label: player.playername,
+                data: [
+                    player.passingyards / 100, // Scale down for better visualization
+                    player.passingtds * 10,    // Scale up for better visualization
+                    player.rushingyards / 10,   // Scale down for better visualization
+                    player.rushingtds * 10,     // Scale up for better visualization
+                    player.interceptions * -5,   // Negative impact
+                    player.totalpoints
+                ],
+                borderColor: getColor(index),
+                backgroundColor: getColor(index, 0.2),
+                fill: true
+            }));
+
+            if (chart) {
+                chart.destroy();
+            }
+
+            chart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: [
+                        'Passing Yards (÷100)',
+                        'Passing TDs (×10)',
+                        'Rushing Yards (÷10)',
+                        'Rushing TDs (×10)',
+                        'Interceptions (×-5)',
+                        'Total Points'
+                    ],
+                    datasets: datasets
+                },
+                options: {
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            min: -50,
+                            max: 500
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+        }
+
+        function getColor(index, alpha = 1) {
+            const colors = [
+                `rgba(255, 99, 132, ${alpha})`,
+                `rgba(54, 162, 235, ${alpha})`,
+                `rgba(255, 206, 86, ${alpha})`,
+                `rgba(75, 192, 192, ${alpha})`,
+                `rgba(153, 102, 255, ${alpha})`
+            ];
+            return colors[index % colors.length];
+        }
+
+        // Debounce the search to avoid too many API calls
+        const debouncedSearch = debounce(handleSearch, 300);
         searchInput.addEventListener('input', debouncedSearch);
-        positionFilter.addEventListener('change', handleSearch);
-        
+        positionFilter.addEventListener('change', debouncedSearch);
+
         function debounce(func, wait) {
             let timeout;
             return function executedFunction(...args) {
@@ -383,20 +187,6 @@
                 clearTimeout(timeout);
                 timeout = setTimeout(later, wait);
             };
-        }
-
-        async function searchPlayers(query, position) {
-            try {
-                const response = await fetch(`/api/search?name=${encodeURIComponent(query)}&position=${position}`);
-                if (!response.ok) {
-                    throw new Error('Failed to search players');
-                }
-                const data = await response.json();
-                return data;
-            } catch (error) {
-                console.error('Error searching players:', error);
-                throw error;
-            }
         }
     </script>
 </body>

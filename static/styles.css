@@ -1,28 +1,21 @@
 body {
     font-family: 'Arial', sans-serif;
     margin: 0;
-    padding: 0;
-    background: linear-gradient(135deg, #1A1A2E 0%, #16213E 50%, #0F3460 100%);
-    color: #F9F9F9;
-    min-height: 100vh;
+    padding: 20px;
+    background-color: #1a1a1a;
+    color: #f9f9f9;
 }
 
 .container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 15px;
-    box-sizing: border-box;
+    padding: 20px;
 }
 
 h1 {
     text-align: center;
-    color: #F9F9F9;
-    margin: 20px 0;
-    font-size: clamp(20px, 5vw, 28px);
-    padding: 0 10px;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    font-weight: 800;
+    color: #f9f9f9;
+    margin-bottom: 30px;
 }
 
 h2 {
@@ -34,14 +27,14 @@ h2 {
 }
 
 .search-section {
-    margin-bottom: 20px;
+    margin-bottom: 30px;
     padding: 0 10px;
 }
 
 .search-box {
     display: flex;
-    gap: 8px;
-    margin-bottom: 15px;
+    gap: 10px;
+    margin-bottom: 20px;
     justify-content: center;
     flex-wrap: wrap;
 }
@@ -50,11 +43,11 @@ input[type="text"] {
     flex: 1;
     min-width: 200px;
     max-width: 400px;
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    color: #F9F9F9;
-    padding: 10px 15px;
-    border-radius: 8px;
+    padding: 10px;
+    border: 1px solid #444;
+    border-radius: 5px;
+    background-color: #2a2a2a;
+    color: #f9f9f9;
     font-size: 14px;
     transition: all 0.3s ease;
     backdrop-filter: blur(10px);
@@ -69,11 +62,11 @@ input[type="text"]:focus {
 select {
     width: auto;
     min-width: 100px;
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    color: #F9F9F9;
-    padding: 10px 15px;
-    border-radius: 8px;
+    padding: 10px;
+    border: 1px solid #444;
+    border-radius: 5px;
+    background-color: #2a2a2a;
+    color: #f9f9f9;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -114,11 +107,14 @@ select:hover, select:focus {
 }
 
 .player-card {
-    background-color: rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     padding: 15px;
-    border-radius: 12px;
+    background-color: #333;
+    border-radius: 5px;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: background-color 0.2s;
     position: relative;
     min-height: 100px;
     border: 2px solid rgba(255, 255, 255, 0.1);
@@ -126,6 +122,7 @@ select:hover, select:focus {
 }
 
 .player-card:hover {
+    background-color: #444;
     transform: translateY(-2px);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     border-color: #E94560;
@@ -224,16 +221,17 @@ select:hover, select:focus {
 .charts-container {
     width: 100%;
     height: 500px;
-    margin: 20px auto;
-    padding: 20px;
+    margin: 20px 0;
     background-color: rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
-#statsChart {
+canvas#statsChart {
     width: 100% !important;
     height: 100% !important;
+    display: block;
 }
 
 .no-results {
@@ -279,4 +277,4 @@ select:hover, select:focus {
         height: clamp(250px, 50vh, 400px);
         padding: 10px;
     }
-} 
+}
