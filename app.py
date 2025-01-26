@@ -11,6 +11,7 @@ from lxml import etree
 from dotenv import load_dotenv
 import pandas as pd
 import numpy as np
+import time
 
 # Load environment variables
 load_dotenv()
@@ -47,39 +48,22 @@ logger.info(f"Using API base URL: {API_BASE_URL}")
 # Updated valid positions to include all available positions
 VALID_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DB', 'DL']
 
-def make_api_request(endpoint):
-    """Make a request to the NFL stats API"""
-    try:
-        url = f"{API_BASE_URL}{endpoint}"
-        logger.info(f"Making API request to: {url}")
-        
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'NFL-Stats-Visualizer/1.0'
-        }
-        
-        response = requests.get(url, headers=headers, timeout=10)
-        logger.info(f"Response status: {response.status_code}")
-        
-        if response.status_code != 200:
-            logger.error(f"API request failed with status {response.status_code}: {url}")
-            logger.error(f"Response content: {response.text}")
-            return None
-            
+def make_api_request(endpoint, max_retries=3, retry_delay=1):
+    """Make a request to the NFL stats API with retry logic"""
+    url = f"{API_BASE_URL}{endpoint}"
+    logger.info(f"Making API request to: {url}")
+    
+    for attempt in range(max_retries):
         try:
-            data = response.json()
-            return data
-        except ValueError as e:
-            logger.error(f"Error parsing JSON response: {str(e)}")
-            logger.error(f"Invalid JSON response: {response.text}")
-            return None
-            
-    except requests.exceptions.RequestException as e:
-        logger.error(f"API request failed: {str(e)}")
-        return None
-    except Exception as e:
-        logger.error(f"Unexpected error in make_api_request: {str(e)}")
-        return None
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            return response
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"API request attempt {attempt + 1} failed: {str(e)}")
+            if attempt == max_retries - 1:
+                logger.error(f"All retry attempts failed for {url}")
+                raise
+            time.sleep(retry_delay)
 
 def validate_xml(xml_string, xsd_path):
     """Validate XML against XSD schema"""
@@ -275,57 +259,40 @@ def search_players():
         if not name:
             return jsonify({'error': 'Name parameter is required'}), 400
             
-        # If position is specified, get players for that position
-        if position:
-            url = f"{API_BASE_URL}/api/players/{position}"
-            response = requests.get(url)
-            if not response.ok:
-                logger.error(f"API request failed: {response.status_code} - {response.text}")
-                return jsonify({'error': 'Failed to fetch players from API'}), response.status_code
-                
-            try:
+        try:
+            if position:
+                response = make_api_request(f"/api/players/{position}")
                 players = response.json()
-            except ValueError as e:
-                logger.error(f"Failed to parse API response: {str(e)}")
-                return jsonify({'error': 'Invalid response from API'}), 500
-                
-            # Filter by name
-            players = [p for p in players if name.lower() in p['playername'].lower()]
-        else:
-            # Get all positions and search through each
-            positions_url = f"{API_BASE_URL}/api/players/positions"
-            response = requests.get(positions_url)
-            if not response.ok:
-                logger.error(f"API request failed: {response.status_code} - {response.text}")
-                return jsonify({'error': 'Failed to fetch positions from API'}), response.status_code
-                
-            try:
+                players = [p for p in players if name.lower() in p['playername'].lower()]
+            else:
+                response = make_api_request("/api/players/positions")
                 positions = response.json()
-            except ValueError as e:
-                logger.error(f"Failed to parse API response: {str(e)}")
-                return jsonify({'error': 'Invalid response from API'}), 500
-                
-            players = []
-            for pos in positions:
-                url = f"{API_BASE_URL}/api/players/{pos}"
-                response = requests.get(url)
-                if response.ok:
+                players = []
+                for pos in positions:
                     try:
-                        pos_players = response.json()
+                        pos_response = make_api_request(f"/api/players/{pos}")
+                        pos_players = pos_response.json()
                         players.extend([p for p in pos_players if name.lower() in p['playername'].lower()])
-                    except ValueError:
-                        logger.warning(f"Failed to parse response for position {pos}")
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch players for position {pos}: {str(e)}")
                         continue
-                else:
-                    logger.warning(f"Failed to fetch players for position {pos}")
-                    continue
+                        
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error: {str(e)}")
+            return jsonify({'error': 'Network error. Please check your connection and try again.'}), 503
+        except ValueError as e:
+            logger.error(f"Failed to parse API response: {str(e)}")
+            return jsonify({'error': 'Invalid response from API'}), 500
         
         if not players:
             return jsonify([])
             
         # Convert string values to float for sorting
         for player in players:
-            player['totalpoints'] = float(player.get('totalpoints', 0))
+            try:
+                player['totalpoints'] = float(player.get('totalpoints', 0))
+            except (ValueError, TypeError):
+                player['totalpoints'] = 0
             
         # Sort by total points
         players.sort(key=lambda x: x['totalpoints'], reverse=True)
@@ -333,7 +300,7 @@ def search_players():
         
     except Exception as e:
         logger.error(f"Error in search_players: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Failed to search players', 'message': str(e)}), 500
+        return jsonify({'error': 'Failed to search players. Please try again later.'}), 500
 
 @app.route('/api/players/<position>')
 def get_players(position):
@@ -343,10 +310,15 @@ def get_players(position):
         return jsonify({'error': f'Invalid position. Valid positions are: {", ".join(VALID_POSITIONS)}'}), 400
     
     try:
-        players = make_api_request(f'/api/players/{position}')
-        if players is None:
-            return jsonify({'error': 'Failed to fetch players data'}), 500
+        response = make_api_request(f'/api/players/{position}')
+        players = response.json()
         return jsonify(players)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network error: {str(e)}")
+        return jsonify({'error': 'Network error. Please check your connection and try again.'}), 503
+    except ValueError as e:
+        logger.error(f"Failed to parse API response: {str(e)}")
+        return jsonify({'error': 'Invalid response from API'}), 500
     except Exception as e:
         logger.error(f"Error in get_players: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -355,10 +327,15 @@ def get_players(position):
 def get_teams():
     """Get all teams with their codes and divisions"""
     try:
-        teams = make_api_request('/api/teams')
-        if teams is None:
-            return jsonify({'error': 'Failed to fetch teams data'}), 500
+        response = make_api_request('/api/teams')
+        teams = response.json()
         return jsonify(teams)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network error: {str(e)}")
+        return jsonify({'error': 'Network error. Please check your connection and try again.'}), 503
+    except ValueError as e:
+        logger.error(f"Failed to parse API response: {str(e)}")
+        return jsonify({'error': 'Invalid response from API'}), 500
     except Exception as e:
         logger.error(f"Error in get_teams: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -368,10 +345,15 @@ def get_team_players(team_code):
     """Get all players for a specific team"""
     team_code = team_code.upper()
     try:
-        players = make_api_request(f'/api/teams/{team_code}/players')
-        if players is None:
-            return jsonify({'error': 'Failed to fetch team players data'}), 500
+        response = make_api_request(f'/api/teams/{team_code}/players')
+        players = response.json()
         return jsonify(players)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network error: {str(e)}")
+        return jsonify({'error': 'Network error. Please check your connection and try again.'}), 503
+    except ValueError as e:
+        logger.error(f"Failed to parse API response: {str(e)}")
+        return jsonify({'error': 'Invalid response from API'}), 500
     except Exception as e:
         logger.error(f"Error in get_team_players: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -402,7 +384,7 @@ def get_player_stats(playerid):
             return jsonify({'error': 'No players found for position'}), 404
 
         # Find this player's stats
-        player_stats = next((p for p in all_players if str(p.get('playerid')) == str(playerid)), None)
+        player_stats = next((p for p in all_players.json() if str(p.get('playerid')) == str(playerid)), None)
         if not player_stats:
             logger.warning(f"Stats not found for player {playerid} in position {position}")
             return jsonify({'error': 'Player stats not found'}), 404
@@ -423,6 +405,12 @@ def get_player_stats(playerid):
         )
         return response
 
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network error: {str(e)}")
+        return jsonify({'error': 'Network error. Please check your connection and try again.'}), 503
+    except ValueError as e:
+        logger.error(f"Failed to parse API response: {str(e)}")
+        return jsonify({'error': 'Invalid response from API'}), 500
     except Exception as e:
         logger.error(f"Error in get_player_stats: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500

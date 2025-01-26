@@ -55,6 +55,7 @@
             }
             
             try {
+                searchResults.innerHTML = '<div class="loading">Searching...</div>';
                 const response = await fetch(`/api/search?name=${encodeURIComponent(query)}&position=${encodeURIComponent(position)}`);
                 const data = await response.json();
                 
@@ -65,7 +66,13 @@
                 displaySearchResults(data);
             } catch (error) {
                 console.error('Search error:', error);
-                searchResults.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+                searchResults.innerHTML = `
+                    <div class="error-message">
+                        ${error.message.includes('Network') ? 
+                          'Network error. Please check your internet connection and try again.' :
+                          `Error: ${error.message}`}
+                        <button onclick="handleSearch()" class="retry-btn">Retry</button>
+                    </div>`;
             }
         }
 
